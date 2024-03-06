@@ -65,7 +65,7 @@ const WALL_COLOR: Color = Color::DARK_GREEN;
 /// Raycast
 const PI: f32 = std::f32::consts::PI;
 const RAYCAST_FOV: f32 = 135. * (PI / 180_f32);
-// const RAYCAST_SPACING: f32 = 15. * (PI / 180_f32);
+const RAY_COUNT: u8 = 12;
 const RAYCAST_DIST: f32 = 150.;
 
 fn main() {
@@ -176,7 +176,7 @@ fn setup(
                 ..default()
             },
             BoidEntity,
-            Movement::new(50.0, direction_degrees),
+            Movement::new(10.0, direction_degrees),
         ));
     })
 }
@@ -202,24 +202,24 @@ fn boids_raycast_drawing_system(
     for (transform, movement) in &mut query {
         let center = transform.translation.xy();
         let direction_angle = movement.direction + PI / 2.;
-        let ray_cast = RayCast2d::new(
-            center,
-            Direction2d::from_xy(f32::cos(direction_angle), f32::sin(direction_angle)).unwrap(),
-            RAYCAST_DIST,
-        );
 
-        gizmos.circle_2d(ray_cast.ray.origin, RAYCAST_DIST, Color::BEIGE);
         gizmos.arc_2d(
-            ray_cast.ray.origin,
+            center,
             PI / 2. - direction_angle,
             RAYCAST_FOV,
             RAYCAST_DIST,
             Color::FUCHSIA,
         );
-        gizmos.line_2d(
-            ray_cast.ray.origin,
-            ray_cast.ray.origin + *ray_cast.ray.direction * ray_cast.max,
-            Color::SALMON,
-        );
+        let ray_spacing = RAYCAST_FOV / (RAY_COUNT - 1) as f32;
+        for idx in 0..RAY_COUNT {
+            let ray_angle = direction_angle + RAYCAST_FOV / 2. - ray_spacing * idx as f32;
+            let ray_vec = Vec2::new(f32::cos(ray_angle), f32::sin(ray_angle));
+            let ray_cast = RayCast2d::new(center, Direction2d::new(ray_vec).unwrap(), RAYCAST_DIST);
+            gizmos.line_2d(
+                ray_cast.ray.origin,
+                ray_cast.ray.origin + ray_vec * ray_cast.max,
+                Color::CRIMSON,
+            );
+        }
     }
 }
