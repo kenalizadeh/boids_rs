@@ -1,13 +1,20 @@
 use bevy::{
+    math::primitives::Rectangle,
     math::vec2,
     prelude::*,
     sprite::MaterialMesh2dBundle,
     window::{close_on_esc, WindowResolution},
 };
-use bevy_math::bounding::RayCast2d;
+use bevy_math::bounding::{Aabb2d, Bounded2d, RayCast2d};
 
 #[derive(Component)]
 struct BoidEntity;
+
+#[derive(Component, Debug)]
+struct CurrentVolume {
+    pub id: u8,
+    pub shape: Rectangle,
+}
 
 #[derive(Component)]
 struct Movement {
@@ -39,9 +46,12 @@ struct RightWall;
 #[derive(Component)]
 struct BottomWall;
 
+#[derive(Component, Deref, DerefMut, Default)]
+struct Intersects(bool);
+
 /// global properties
 const WINDOW_SIZE: Vec2 = vec2(1900_f32, 1200_f32);
-const BOID_COUNT: u8 = 5;
+const BOID_COUNT: u8 = 1;
 const INTER_BOID_SPACING: f32 = 200.0;
 
 /// boid spawn properties
@@ -80,7 +90,14 @@ fn main() {
             ..default()
         }))
         .add_systems(Startup, setup)
-        .add_systems(Update, (close_on_esc, boids_raycast_drawing_system))
+        .add_systems(
+            Update,
+            (
+                close_on_esc,
+                boids_update_volumes_system,
+                boids_raycast_drawing_system,
+            ),
+        )
         .add_systems(FixedUpdate, boids_movement_system)
         .run();
 }
@@ -108,6 +125,11 @@ fn setup(
             ..default()
         },
         TopWall,
+        CurrentVolume {
+            id: 1,
+            shape: Rectangle::new(HORIZONTAL_WALL_SIZE, WALL_THICKNESS),
+        },
+        Intersects::default(),
     ));
 
     // left wall
@@ -124,6 +146,11 @@ fn setup(
             ..default()
         },
         LeftWall,
+        CurrentVolume {
+            id: 2,
+            shape: Rectangle::new(WALL_THICKNESS, VERTICAL_WALL_SIZE),
+        },
+        Intersects::default(),
     ));
 
     // bottom wall
@@ -140,6 +167,11 @@ fn setup(
             ..default()
         },
         BottomWall,
+        CurrentVolume {
+            id: 2,
+            shape: Rectangle::new(HORIZONTAL_WALL_SIZE, WALL_THICKNESS),
+        },
+        Intersects::default(),
     ));
 
     // right wall
@@ -156,6 +188,11 @@ fn setup(
             ..default()
         },
         RightWall,
+        CurrentVolume {
+            id: 2,
+            shape: Rectangle::new(WALL_THICKNESS, VERTICAL_WALL_SIZE),
+        },
+        Intersects::default(),
     ));
 
     let ship_handle = asset_server.load("textures/ship_C.png");
@@ -176,7 +213,12 @@ fn setup(
                 ..default()
             },
             BoidEntity,
-            Movement::new(10.0, direction_degrees),
+            CurrentVolume {
+                id: idx as u8 * 10,
+                shape: Rectangle::new(BOID_SIZE, BOID_SIZE),
+            },
+            Movement::new(50.0, direction_degrees),
+            Intersects::default(),
         ));
     })
 }
@@ -197,9 +239,10 @@ fn boids_movement_system(
 
 fn boids_raycast_drawing_system(
     mut gizmos: Gizmos,
-    mut query: Query<(&mut Transform, &mut Movement), With<BoidEntity>>,
+    mut query: Query<(&mut Transform, &CurrentVolume, &mut Movement), With<BoidEntity>>,
+    volumes_query: Query<(&Transform, &CurrentVolume), Without<BoidEntity>>,
 ) {
-    for (transform, movement) in &mut query {
+    for (transform, current_volume, movement) in &mut query {
         let center = transform.translation.xy();
         let direction_angle = movement.direction + PI / 2.;
 
@@ -215,11 +258,46 @@ fn boids_raycast_drawing_system(
             let ray_angle = direction_angle + RAYCAST_FOV / 2. - ray_spacing * idx as f32;
             let ray_vec = Vec2::new(f32::cos(ray_angle), f32::sin(ray_angle));
             let ray_cast = RayCast2d::new(center, Direction2d::new(ray_vec).unwrap(), RAYCAST_DIST);
+
+            let mut hits = false;
+            for (transform, volume) in volumes_query.iter() {
+                if volume.id == current_volume.id {
+                    continue;
+                }
+                let aabb = volume.shape.aabb_2d(
+                    transform.translation.xy(),
+                    transform.rotation.to_euler(EulerRot::YXZ).2,
+                );
+                let coll = ray_cast.aabb_intersection_at(&aabb).is_some();
+                if coll {
+                    hits = true;
+                    break;
+                }
+            }
             gizmos.line_2d(
                 ray_cast.ray.origin,
                 ray_cast.ray.origin + ray_vec * ray_cast.max,
-                Color::CRIMSON,
+                if hits {
+                    Color::CRIMSON
+                } else {
+                    Color::TURQUOISE
+                },
             );
         }
+    }
+}
+
+fn boids_update_volumes_system(
+    mut commands: Commands,
+    mut gizmos: Gizmos,
+    mut query: Query<(Entity, &CurrentVolume, &Transform)>,
+) {
+    for (entity, volume, transform) in query.iter() {
+        gizmos.rect_2d(
+            transform.translation.xy(),
+            transform.rotation.to_euler(EulerRot::YXZ).2,
+            volume.shape.size(),
+            Color::PINK,
+        )
     }
 }
