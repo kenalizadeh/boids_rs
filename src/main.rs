@@ -51,7 +51,7 @@ struct Intersects(bool);
 
 /// global properties
 const WINDOW_SIZE: Vec2 = vec2(1900_f32, 1200_f32);
-const BOID_COUNT: u8 = 5;
+const BOID_COUNT: u8 = 1;
 const INTER_BOID_SPACING: f32 = 200.0;
 
 /// boid spawn properties
@@ -218,7 +218,7 @@ fn setup(
                 id: idx as u8 * 10,
                 shape: Rectangle::new(BOID_SIZE, BOID_SIZE),
             },
-            Movement::new(50.0, direction_degrees),
+            Movement::new(150.0, direction_degrees),
             Intersects::default(),
         ));
     })
@@ -246,7 +246,7 @@ fn cast_ray_and_check(
     ray_spacing: f32,
     current_volume: &CurrentVolume,
     volumes_query: &Query<(&Transform, &CurrentVolume), Without<BoidEntity>>,
-) -> bool {
+) -> (bool, f32) {
     let idx_even = idx % 2 == 0;
     let div = (idx as i8 / 2) as f32;
     let mul: f32 = if idx_even { -1. } else { 1. };
@@ -279,7 +279,7 @@ fn cast_ray_and_check(
         },
     );
 
-    hits
+    (hits, ray_angle - direction_angle)
 }
 
 fn boids_raycast_drawing_system(
@@ -287,7 +287,7 @@ fn boids_raycast_drawing_system(
     mut query: Query<(&mut Transform, &CurrentVolume, &mut Movement), With<BoidEntity>>,
     volumes_query: Query<(&Transform, &CurrentVolume), Without<BoidEntity>>,
 ) {
-    for (transform, current_volume, movement) in &mut query {
+    for (transform, current_volume, mut movement) in &mut query {
         let center = transform.translation.xy();
         let direction_angle = movement.direction + PI / 2.;
 
@@ -300,7 +300,7 @@ fn boids_raycast_drawing_system(
         );
         let ray_spacing = RAYCAST_FOV / (RAY_COUNT - 1) as f32;
         for idx in 0..RAY_COUNT {
-            let hits = cast_ray_and_check(
+            let (hits, angle) = cast_ray_and_check(
                 idx,
                 &mut gizmos,
                 center,
@@ -312,6 +312,10 @@ fn boids_raycast_drawing_system(
 
             if !hits {
                 break;
+            } else {
+                // sometimes it doesn't work as soon as the boid is spawned
+                // fix it plz
+                movement.direction -= angle;
             }
         }
     }
