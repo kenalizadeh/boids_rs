@@ -75,8 +75,7 @@ const WALL_COLOR: Color = Color::DARK_GREEN;
 /// Raycast
 const PI: f32 = std::f32::consts::PI;
 const RAYCAST_FOV: f32 = 135. * (PI / 180_f32);
-const RAY_COUNT: u8 = 11;
-const RAY_SPACING_ANGLE: f32 = 10. * (PI / 180_f32);
+const RAY_COUNT: u8 = 31;
 const RAYCAST_DIST: f32 = 200.;
 
 fn main() {
@@ -92,14 +91,15 @@ fn main() {
         }))
         .add_systems(Startup, setup)
         .add_systems(
-            Update,
+            FixedUpdate,
             (
                 close_on_esc,
-                boids_update_volumes_system,
                 boids_raycast_drawing_system,
-            ),
+                boids_movement_system,
+            )
+                .chain(),
         )
-        .add_systems(FixedUpdate, boids_movement_system)
+        .add_systems(Update, boids_update_volumes_system)
         .run();
 }
 
@@ -202,7 +202,6 @@ fn setup(
 
         let direction_degrees = fastrand::f32() * 360.0;
         let direction_degrees = f32::to_radians(direction_degrees);
-        info!("deg: {}", direction_degrees);
         commands.spawn((
             SpriteBundle {
                 texture: ship_handle.clone(),
@@ -311,11 +310,8 @@ fn boids_raycast_drawing_system(
             );
 
             if !hits {
+                movement.direction += angle;
                 break;
-            } else {
-                // sometimes it doesn't work as soon as the boid is spawned
-                // fix it plz
-                movement.direction -= angle;
             }
         }
     }
