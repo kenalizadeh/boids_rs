@@ -51,7 +51,7 @@ struct Intersects(bool);
 
 /// global properties
 const WINDOW_SIZE: Vec2 = vec2(1900_f32, 1200_f32);
-const BOID_COUNT: u8 = 1;
+const BOID_COUNT: u8 = 5;
 const INTER_BOID_SPACING: f32 = 200.0;
 
 /// boid spawn properties
@@ -75,8 +75,9 @@ const WALL_COLOR: Color = Color::DARK_GREEN;
 /// Raycast
 const PI: f32 = std::f32::consts::PI;
 const RAYCAST_FOV: f32 = 135. * (PI / 180_f32);
-const RAY_COUNT: u8 = 12;
-const RAYCAST_DIST: f32 = 150.;
+const RAY_COUNT: u8 = 11;
+const RAY_SPACING_ANGLE: f32 = 10. * (PI / 180_f32);
+const RAYCAST_DIST: f32 = 200.;
 
 fn main() {
     App::new()
@@ -237,6 +238,50 @@ fn boids_movement_system(
     }
 }
 
+fn cast_ray_and_check(
+    idx: u8,
+    gizmos: &mut Gizmos,
+    center: Vec2,
+    direction_angle: f32,
+    ray_spacing: f32,
+    current_volume: &CurrentVolume,
+    volumes_query: &Query<(&Transform, &CurrentVolume), Without<BoidEntity>>,
+) -> bool {
+    let idx_even = idx % 2 == 0;
+    let div = (idx as i8 / 2) as f32;
+    let mul: f32 = if idx_even { -1. } else { 1. };
+    let ray_angle = direction_angle + mul * (idx as f32 * ray_spacing - (div * ray_spacing));
+    let ray_vec = Vec2::new(f32::cos(ray_angle), f32::sin(ray_angle));
+    let ray_cast = RayCast2d::new(center, Direction2d::new(ray_vec).unwrap(), RAYCAST_DIST);
+
+    let mut hits = false;
+    for (transform, volume) in volumes_query.iter() {
+        if volume.id == current_volume.id {
+            continue;
+        }
+        let aabb = volume.shape.aabb_2d(
+            transform.translation.xy(),
+            transform.rotation.to_euler(EulerRot::YXZ).2,
+        );
+        let coll = ray_cast.aabb_intersection_at(&aabb).is_some();
+        if coll {
+            hits = true;
+            break;
+        }
+    }
+    gizmos.line_2d(
+        ray_cast.ray.origin,
+        ray_cast.ray.origin + ray_vec * ray_cast.max,
+        if hits {
+            Color::CRIMSON
+        } else {
+            Color::TURQUOISE
+        },
+    );
+
+    hits
+}
+
 fn boids_raycast_drawing_system(
     mut gizmos: Gizmos,
     mut query: Query<(&mut Transform, &CurrentVolume, &mut Movement), With<BoidEntity>>,
@@ -255,44 +300,29 @@ fn boids_raycast_drawing_system(
         );
         let ray_spacing = RAYCAST_FOV / (RAY_COUNT - 1) as f32;
         for idx in 0..RAY_COUNT {
-            let ray_angle = direction_angle + RAYCAST_FOV / 2. - ray_spacing * idx as f32;
-            let ray_vec = Vec2::new(f32::cos(ray_angle), f32::sin(ray_angle));
-            let ray_cast = RayCast2d::new(center, Direction2d::new(ray_vec).unwrap(), RAYCAST_DIST);
-
-            let mut hits = false;
-            for (transform, volume) in volumes_query.iter() {
-                if volume.id == current_volume.id {
-                    continue;
-                }
-                let aabb = volume.shape.aabb_2d(
-                    transform.translation.xy(),
-                    transform.rotation.to_euler(EulerRot::YXZ).2,
-                );
-                let coll = ray_cast.aabb_intersection_at(&aabb).is_some();
-                if coll {
-                    hits = true;
-                    break;
-                }
-            }
-            gizmos.line_2d(
-                ray_cast.ray.origin,
-                ray_cast.ray.origin + ray_vec * ray_cast.max,
-                if hits {
-                    Color::CRIMSON
-                } else {
-                    Color::TURQUOISE
-                },
+            let hits = cast_ray_and_check(
+                idx,
+                &mut gizmos,
+                center,
+                direction_angle,
+                ray_spacing,
+                current_volume,
+                &volumes_query,
             );
+
+            if !hits {
+                break;
+            }
         }
     }
 }
 
 fn boids_update_volumes_system(
-    mut commands: Commands,
+    // mut commands: Commands,
     mut gizmos: Gizmos,
-    mut query: Query<(Entity, &CurrentVolume, &Transform)>,
+    query: Query<(Entity, &CurrentVolume, &Transform)>,
 ) {
-    for (entity, volume, transform) in query.iter() {
+    for (_entity, volume, transform) in query.iter() {
         gizmos.rect_2d(
             transform.translation.xy(),
             transform.rotation.to_euler(EulerRot::YXZ).2,
