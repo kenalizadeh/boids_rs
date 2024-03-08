@@ -317,6 +317,9 @@ fn boids_raycast_drawing_system(
                     break;
                 }
             }
+            if map.get(&current_volume.id).is_none() {
+                map.insert(current_volume.id, PI / 2.);
+            }
         }
     }
 
@@ -330,7 +333,6 @@ fn boids_raycast_drawing_system(
 }
 
 fn boids_update_volumes_system(
-    // mut commands: Commands,
     mut gizmos: Gizmos,
     query: Query<(Entity, &CurrentVolume, &Transform)>,
 ) {
