@@ -1,11 +1,12 @@
 use bevy::{
-    math::primitives::Rectangle,
-    math::vec2,
+    math::{primitives::Rectangle, vec2},
     prelude::*,
+    reflect::Map,
     sprite::MaterialMesh2dBundle,
+    utils::HashMap,
     window::{close_on_esc, WindowResolution},
 };
-use bevy_math::bounding::{Aabb2d, Bounded2d, RayCast2d};
+use bevy_math::bounding::{Bounded2d, RayCast2d};
 
 #[derive(Component)]
 struct BoidEntity;
@@ -16,7 +17,7 @@ struct CurrentVolume {
     pub shape: Rectangle,
 }
 
-#[derive(Component)]
+#[derive(Component, Default)]
 struct Movement {
     pub velocity: f32,
     /// direction in radians
@@ -51,14 +52,15 @@ struct Intersects(bool);
 
 /// global properties
 const WINDOW_SIZE: Vec2 = vec2(1900_f32, 1200_f32);
-const BOID_COUNT: u8 = 1;
+const BOID_COUNT: u8 = 7;
 const INTER_BOID_SPACING: f32 = 200.0;
 
 /// boid spawn properties
-const BOID_SIZE: f32 = 30.0;
+const BOID_SIZE: f32 = 50.0;
 const TOTAL_SIZE: f32 = BOID_COUNT as f32 * BOID_SIZE;
 const TOTAL_SPACING: f32 = INTER_BOID_SPACING * (BOID_COUNT - 1) as f32;
 const TOTAL_OFFSET: f32 = (TOTAL_SIZE + TOTAL_SPACING) / 2.0;
+const BOID_VELOCITY: f32 = 150.;
 
 /// Walls
 const WALL_THICKNESS: f32 = 10.0;
@@ -75,7 +77,7 @@ const WALL_COLOR: Color = Color::DARK_GREEN;
 /// Raycast
 const PI: f32 = std::f32::consts::PI;
 const RAYCAST_FOV: f32 = 135. * (PI / 180_f32);
-const RAY_COUNT: u8 = 31;
+const RAY_COUNT: u8 = 21;
 const RAYCAST_DIST: f32 = 200.;
 
 fn main() {
@@ -217,7 +219,7 @@ fn setup(
                 id: idx as u8 * 10,
                 shape: Rectangle::new(BOID_SIZE, BOID_SIZE),
             },
-            Movement::new(150.0, direction_degrees),
+            Movement::new(BOID_VELOCITY, direction_degrees),
             Intersects::default(),
         ));
     })
@@ -244,7 +246,7 @@ fn cast_ray_and_check(
     direction_angle: f32,
     ray_spacing: f32,
     current_volume: &CurrentVolume,
-    volumes_query: &Query<(&Transform, &CurrentVolume), Without<BoidEntity>>,
+    volumes_query: &Query<(&mut Transform, &CurrentVolume, Option<&mut Movement>)>,
 ) -> (bool, f32) {
     let idx_even = idx % 2 == 0;
     let div = (idx as i8 / 2) as f32;
@@ -254,7 +256,7 @@ fn cast_ray_and_check(
     let ray_cast = RayCast2d::new(center, Direction2d::new(ray_vec).unwrap(), RAYCAST_DIST);
 
     let mut hits = false;
-    for (transform, volume) in volumes_query.iter() {
+    for (transform, volume, _) in volumes_query.iter() {
         if volume.id == current_volume.id {
             continue;
         }
@@ -283,35 +285,45 @@ fn cast_ray_and_check(
 
 fn boids_raycast_drawing_system(
     mut gizmos: Gizmos,
-    mut query: Query<(&mut Transform, &CurrentVolume, &mut Movement), With<BoidEntity>>,
-    volumes_query: Query<(&Transform, &CurrentVolume), Without<BoidEntity>>,
+    mut query: Query<(&mut Transform, &CurrentVolume, Option<&mut Movement>)>,
 ) {
-    for (transform, current_volume, mut movement) in &mut query {
-        let center = transform.translation.xy();
-        let direction_angle = movement.direction + PI / 2.;
+    let mut map: HashMap<u8, f32> = HashMap::new();
+    for (transform, current_volume, movement) in &query {
+        if let Some(movement) = movement {
+            let center = transform.translation.xy();
+            let direction_angle = movement.direction + PI / 2.;
 
-        gizmos.arc_2d(
-            center,
-            PI / 2. - direction_angle,
-            RAYCAST_FOV,
-            RAYCAST_DIST,
-            Color::FUCHSIA,
-        );
-        let ray_spacing = RAYCAST_FOV / (RAY_COUNT - 1) as f32;
-        for idx in 0..RAY_COUNT {
-            let (hits, angle) = cast_ray_and_check(
-                idx,
-                &mut gizmos,
+            gizmos.arc_2d(
                 center,
-                direction_angle,
-                ray_spacing,
-                current_volume,
-                &volumes_query,
+                PI / 2. - direction_angle,
+                RAYCAST_FOV,
+                RAYCAST_DIST,
+                Color::FUCHSIA.with_a(0.2),
             );
+            let ray_spacing = RAYCAST_FOV / (RAY_COUNT - 1) as f32;
+            for idx in 0..RAY_COUNT {
+                let (hits, angle) = cast_ray_and_check(
+                    idx,
+                    &mut gizmos,
+                    center,
+                    direction_angle,
+                    ray_spacing,
+                    current_volume,
+                    &query,
+                );
 
-            if !hits {
+                if !hits {
+                    map.insert(current_volume.id, angle);
+                    break;
+                }
+            }
+        }
+    }
+
+    for (_, current_volume, movement) in &mut query {
+        if let Some(mut movement) = movement {
+            if let Some(angle) = map.get(&current_volume.id) {
                 movement.direction += angle;
-                break;
             }
         }
     }
