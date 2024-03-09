@@ -10,10 +10,16 @@ use bevy_math::bounding::{Bounded2d, RayCast2d};
 #[derive(Component)]
 struct BoidEntity;
 
-#[derive(Component, Debug)]
+#[derive(Component)]
 struct CurrentVolume {
     pub id: u8,
     pub shape: Rectangle,
+}
+
+#[derive(Component)]
+struct BoidFlock {
+    pub center: Vec2,
+    // pub direction: Vec2
 }
 
 #[derive(Component, Default)]
@@ -56,8 +62,8 @@ const BOID_COUNT: u8 = 7;
 const INTER_BOID_SPACING: f32 = 200.0;
 
 /// boid spawn properties
-const BOID_SIZE: f32 = 50.0;
-const TOTAL_SIZE: f32 = BOID_COUNT as f32 * BOID_SIZE;
+const BOID_SIZE: Vec2 = Vec2::new(20., 60.);
+const TOTAL_SIZE: f32 = BOID_COUNT as f32 * BOID_SIZE.x;
 const TOTAL_SPACING: f32 = INTER_BOID_SPACING * (BOID_COUNT - 1) as f32;
 const TOTAL_OFFSET: f32 = (TOTAL_SIZE + TOTAL_SPACING) / 2.0;
 const BOID_SPEED: f32 = 150.;
@@ -196,7 +202,7 @@ fn setup(
         },
     ));
 
-    let ship_handle = asset_server.load("textures/ship_C.png");
+    let ship_handle = asset_server.load("textures/berd.png");
     (0..BOID_COUNT).for_each(|idx| {
         let idx = idx as f32;
 
@@ -216,7 +222,7 @@ fn setup(
             BoidEntity,
             CurrentVolume {
                 id: idx as u8 * 10,
-                shape: Rectangle::new(BOID_SIZE, BOID_SIZE),
+                shape: Rectangle::from_size(BOID_SIZE),
             },
             Movement::new(Vec2::from_angle(direction_degrees) * BOID_SPEED, PI * 2.),
         ));
