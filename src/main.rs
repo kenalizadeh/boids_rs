@@ -1,7 +1,6 @@
 use bevy::{
     math::{primitives::Rectangle, vec2},
     prelude::*,
-    reflect::Map,
     sprite::MaterialMesh2dBundle,
     utils::HashMap,
     window::{close_on_esc, WindowResolution},
@@ -19,18 +18,17 @@ struct CurrentVolume {
 
 #[derive(Component, Default)]
 struct Movement {
-    pub velocity: f32,
-    /// direction in radians
-    pub direction: f32,
-    rotation_speed: f32,
+    pub velocity: Vec2,
+    pub target_velocity: Option<Vec2>,
+    pub rotation_speed: f32,
 }
 
 impl Movement {
-    fn new(velocity: f32, direction: f32) -> Self {
+    fn new(velocity: Vec2, rotation_speed: f32) -> Self {
         Self {
             velocity,
-            direction,
-            rotation_speed: f32::to_radians(90.0),
+            target_velocity: Option::None,
+            rotation_speed,
         }
     }
 }
@@ -47,8 +45,10 @@ struct RightWall;
 #[derive(Component)]
 struct BottomWall;
 
-#[derive(Component, Deref, DerefMut, Default)]
-struct Intersects(bool);
+#[derive(Resource, Default)]
+struct Configuration {
+    pub debug: bool,
+}
 
 /// global properties
 const WINDOW_SIZE: Vec2 = vec2(1900_f32, 1200_f32);
@@ -60,7 +60,7 @@ const BOID_SIZE: f32 = 50.0;
 const TOTAL_SIZE: f32 = BOID_COUNT as f32 * BOID_SIZE;
 const TOTAL_SPACING: f32 = INTER_BOID_SPACING * (BOID_COUNT - 1) as f32;
 const TOTAL_OFFSET: f32 = (TOTAL_SIZE + TOTAL_SPACING) / 2.0;
-const BOID_VELOCITY: f32 = 150.;
+const BOID_SPEED: f32 = 150.;
 
 /// Walls
 const WALL_THICKNESS: f32 = 10.0;
@@ -76,8 +76,8 @@ const WALL_COLOR: Color = Color::DARK_GREEN;
 
 /// Raycast
 const PI: f32 = std::f32::consts::PI;
-const RAYCAST_FOV: f32 = 135. * (PI / 180_f32);
-const RAY_COUNT: u8 = 21;
+const RAYCAST_FOV: f32 = 270. * (PI / 180_f32);
+const RAY_COUNT: u8 = 31;
 const RAYCAST_DIST: f32 = 200.;
 
 fn main() {
@@ -91,6 +91,8 @@ fn main() {
             }),
             ..default()
         }))
+        .insert_resource(Time::<Fixed>::from_hz(60.))
+        .insert_resource(Configuration::default())
         .add_systems(Startup, setup)
         .add_systems(
             FixedUpdate,
@@ -101,7 +103,7 @@ fn main() {
             )
                 .chain(),
         )
-        .add_systems(Update, boids_update_volumes_system)
+        .add_systems(Update, (boids_update_volumes_system, config_update_system))
         .run();
 }
 
@@ -132,7 +134,6 @@ fn setup(
             id: 1,
             shape: Rectangle::new(HORIZONTAL_WALL_SIZE, WALL_THICKNESS),
         },
-        Intersects::default(),
     ));
 
     // left wall
@@ -153,7 +154,6 @@ fn setup(
             id: 2,
             shape: Rectangle::new(WALL_THICKNESS, VERTICAL_WALL_SIZE),
         },
-        Intersects::default(),
     ));
 
     // bottom wall
@@ -174,7 +174,6 @@ fn setup(
             id: 2,
             shape: Rectangle::new(HORIZONTAL_WALL_SIZE, WALL_THICKNESS),
         },
-        Intersects::default(),
     ));
 
     // right wall
@@ -195,7 +194,6 @@ fn setup(
             id: 2,
             shape: Rectangle::new(WALL_THICKNESS, VERTICAL_WALL_SIZE),
         },
-        Intersects::default(),
     ));
 
     let ship_handle = asset_server.load("textures/ship_C.png");
@@ -203,7 +201,7 @@ fn setup(
         let idx = idx as f32;
 
         let direction_degrees = fastrand::f32() * 360.0;
-        let direction_degrees = f32::to_radians(direction_degrees);
+        let direction_degrees = direction_degrees.to_radians();
         commands.spawn((
             SpriteBundle {
                 texture: ship_handle.clone(),
@@ -211,7 +209,8 @@ fn setup(
                     (idx * INTER_BOID_SPACING) - TOTAL_OFFSET,
                     -300.0,
                     0.0,
-                )),
+                ))
+                .with_rotation(Quat::from_rotation_z(direction_degrees)),
                 ..default()
             },
             BoidEntity,
@@ -219,8 +218,7 @@ fn setup(
                 id: idx as u8 * 10,
                 shape: Rectangle::new(BOID_SIZE, BOID_SIZE),
             },
-            Movement::new(BOID_VELOCITY, direction_degrees),
-            Intersects::default(),
+            Movement::new(Vec2::from_angle(direction_degrees) * BOID_SPEED, PI * 2.),
         ));
     })
 }
@@ -230,12 +228,19 @@ fn boids_movement_system(
     mut query: Query<(&mut Transform, &mut Movement), With<BoidEntity>>,
 ) {
     // move boids forward the direction it's facing
-    for (mut transform, movement) in &mut query {
-        transform.rotation = Quat::from_rotation_z(movement.direction);
-        let movement_direction = transform.rotation * Vec3::Y;
-        let movement_distance = 1.0 * movement.velocity * time.delta_seconds();
-        let translation_delta = movement_direction * movement_distance;
-        transform.translation += translation_delta;
+    for (mut transform, mut movement) in &mut query {
+        if let Some(velocity) = movement.target_velocity {
+            let angle = velocity.to_angle() * movement.rotation_speed * time.delta_seconds();
+            let boid_fowrad_vec = (transform.rotation * Vec3::Y).xy();
+            if (boid_fowrad_vec.to_angle() - angle).abs() < f32::EPSILON {
+                continue;
+            }
+            transform.rotate(Quat::from_rotation_z(angle));
+            let translation_delta =
+                transform.rotation * Vec3::Y * velocity.length() * time.delta_seconds();
+            transform.translation += translation_delta;
+            movement.velocity = (transform.rotation * Vec3::Y).xy() * velocity.length();
+        }
     }
 }
 
@@ -244,15 +249,16 @@ fn cast_ray_and_check(
     gizmos: &mut Gizmos,
     center: Vec2,
     direction_angle: f32,
-    ray_spacing: f32,
     current_volume: &CurrentVolume,
     volumes_query: &Query<(&mut Transform, &CurrentVolume, Option<&mut Movement>)>,
+    debug: bool,
 ) -> (bool, f32) {
+    let ray_spacing = RAYCAST_FOV / (RAY_COUNT - 1) as f32;
     let idx_even = idx % 2 == 0;
     let div = (idx as i8 / 2) as f32;
     let mul: f32 = if idx_even { -1. } else { 1. };
     let ray_angle = direction_angle + mul * (idx as f32 * ray_spacing - (div * ray_spacing));
-    let ray_vec = Vec2::new(f32::cos(ray_angle), f32::sin(ray_angle));
+    let ray_vec = Vec2::from_angle(ray_angle);
     let ray_cast = RayCast2d::new(center, Direction2d::new(ray_vec).unwrap(), RAYCAST_DIST);
 
     let mut hits = false;
@@ -270,20 +276,23 @@ fn cast_ray_and_check(
             break;
         }
     }
-    gizmos.line_2d(
-        ray_cast.ray.origin,
-        ray_cast.ray.origin + ray_vec * ray_cast.max,
-        if hits {
-            Color::CRIMSON
-        } else {
-            Color::TURQUOISE
-        },
-    );
+    if debug {
+        gizmos.line_2d(
+            ray_cast.ray.origin,
+            ray_cast.ray.origin + ray_vec * ray_cast.max,
+            if hits {
+                Color::CRIMSON
+            } else {
+                Color::TURQUOISE
+            },
+        );
+    }
 
     (hits, ray_angle - direction_angle)
 }
 
 fn boids_raycast_drawing_system(
+    config: ResMut<Configuration>,
     mut gizmos: Gizmos,
     mut query: Query<(&mut Transform, &CurrentVolume, Option<&mut Movement>)>,
 ) {
@@ -291,25 +300,26 @@ fn boids_raycast_drawing_system(
     for (transform, current_volume, movement) in &query {
         if let Some(movement) = movement {
             let center = transform.translation.xy();
-            let direction_angle = movement.direction + PI / 2.;
+            let direction_angle = movement.velocity.to_angle();
 
-            gizmos.arc_2d(
-                center,
-                PI / 2. - direction_angle,
-                RAYCAST_FOV,
-                RAYCAST_DIST,
-                Color::FUCHSIA.with_a(0.2),
-            );
-            let ray_spacing = RAYCAST_FOV / (RAY_COUNT - 1) as f32;
+            if config.debug {
+                gizmos.arc_2d(
+                    center,
+                    PI / 2. - direction_angle,
+                    RAYCAST_FOV,
+                    RAYCAST_DIST,
+                    Color::FUCHSIA.with_a(0.2),
+                );
+            }
             for idx in 0..RAY_COUNT {
                 let (hits, angle) = cast_ray_and_check(
                     idx,
                     &mut gizmos,
                     center,
                     direction_angle,
-                    ray_spacing,
                     current_volume,
                     &query,
+                    config.debug,
                 );
 
                 if !hits {
@@ -326,16 +336,21 @@ fn boids_raycast_drawing_system(
     for (_, current_volume, movement) in &mut query {
         if let Some(mut movement) = movement {
             if let Some(angle) = map.get(&current_volume.id) {
-                movement.direction += angle;
+                let velocity = Vec2::from_angle(*angle) * movement.velocity.length();
+                movement.target_velocity = Some(velocity);
             }
         }
     }
 }
 
 fn boids_update_volumes_system(
+    config: ResMut<Configuration>,
     mut gizmos: Gizmos,
     query: Query<(Entity, &CurrentVolume, &Transform)>,
 ) {
+    if !config.debug {
+        return;
+    }
     for (_entity, volume, transform) in query.iter() {
         gizmos.rect_2d(
             transform.translation.xy(),
@@ -343,5 +358,11 @@ fn boids_update_volumes_system(
             volume.shape.size(),
             Color::PINK,
         )
+    }
+}
+
+fn config_update_system(mut config: ResMut<Configuration>, key_input: Res<ButtonInput<KeyCode>>) {
+    if key_input.just_pressed(KeyCode::Space) {
+        config.debug = !config.debug;
     }
 }
