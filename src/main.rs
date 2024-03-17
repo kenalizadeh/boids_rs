@@ -12,14 +12,23 @@ struct BoidEntity;
 
 #[derive(Component)]
 struct CurrentVolume {
-    pub id: u8,
+    pub id: usize,
     pub shape: Rectangle,
 }
 
 #[derive(Component)]
 struct BoidFlock {
-    pub center: Vec2,
-    // pub direction: Vec2
+    pub radius: f32,
+    pub direction: Vec2,
+}
+
+impl BoidFlock {
+    fn new() -> Self {
+        BoidFlock {
+            radius: 150.,
+            direction: Vec2::new(0., 0.),
+        }
+    }
 }
 
 #[derive(Component, Default)]
@@ -58,7 +67,7 @@ struct Configuration {
 
 /// global properties
 const WINDOW_SIZE: Vec2 = vec2(1900_f32, 1200_f32);
-const BOID_COUNT: u8 = 7;
+const BOID_COUNT: u8 = 64;
 const INTER_BOID_SPACING: f32 = 200.0;
 
 /// boid spawn properties
@@ -92,7 +101,7 @@ fn main() {
             primary_window: Some(Window {
                 resolution: WindowResolution::new(WINDOW_SIZE.x, WINDOW_SIZE.y),
                 title: "Boids Demo".to_string(),
-                resizable: false,
+                resizable: true,
                 ..default()
             }),
             ..default()
@@ -106,6 +115,7 @@ fn main() {
                 close_on_esc,
                 boids_raycast_drawing_system,
                 boids_movement_system,
+                update_local_flock_direction,
             )
                 .chain(),
         )
@@ -177,7 +187,7 @@ fn setup(
         },
         BottomWall,
         CurrentVolume {
-            id: 2,
+            id: 3,
             shape: Rectangle::new(HORIZONTAL_WALL_SIZE, WALL_THICKNESS),
         },
     ));
@@ -197,36 +207,83 @@ fn setup(
         },
         RightWall,
         CurrentVolume {
-            id: 2,
+            id: 4,
             shape: Rectangle::new(WALL_THICKNESS, VERTICAL_WALL_SIZE),
         },
     ));
 
-    let ship_handle = asset_server.load("textures/berd.png");
-    (0..BOID_COUNT).for_each(|idx| {
-        let idx = idx as f32;
+    let grids_vec = tile_window(BOID_COUNT as u32);
+    // for grid in grids_vec {
+    //     commands.spawn(MaterialMesh2dBundle {
+    //         mesh: meshes.add(Rectangle::new(grid.width, grid.height)).into(),
+    //         material: materials.add(ColorMaterial::from(Color::rgb(
+    //             fastrand::f32(),
+    //             fastrand::f32(),
+    //             fastrand::f32(),
+    //         ))),
+    //         transform: Transform::from_xyz(grid.x, grid.y, 0.),
+    //         ..default()
+    //     });
+    // }
 
+    let ship_handle = asset_server.load("textures/berd.png");
+    for (idx, grid) in grids_vec.iter().enumerate() {
         let direction_degrees = fastrand::f32() * 360.0;
         let direction_degrees = direction_degrees.to_radians();
         commands.spawn((
             SpriteBundle {
                 texture: ship_handle.clone(),
-                transform: Transform::from_translation(Vec3::new(
-                    (idx * INTER_BOID_SPACING) - TOTAL_OFFSET,
-                    -300.0,
-                    0.0,
-                ))
-                .with_rotation(Quat::from_rotation_z(direction_degrees)),
+                transform: Transform::from_xyz(grid.x, grid.y, 0.0)
+                    .with_rotation(Quat::from_rotation_z(direction_degrees)),
                 ..default()
             },
             BoidEntity,
             CurrentVolume {
-                id: idx as u8 * 10,
+                id: idx * 10,
                 shape: Rectangle::from_size(BOID_SIZE),
             },
             Movement::new(Vec2::from_angle(direction_degrees) * BOID_SPEED, PI * 2.),
+            BoidFlock::new(),
         ));
-    })
+    }
+}
+
+fn grid_row_col(x: u32) -> u32 {
+    ((x as f32).sqrt().ceil() as u32).max(2)
+}
+
+#[derive(Debug)]
+struct GridRect {
+    x: f32,
+    y: f32,
+    width: f32,
+    height: f32,
+}
+
+impl GridRect {
+    fn center(&self) -> Vec2 {
+        Vec2::new(self.x, self.y)
+    }
+}
+
+fn tile_window(tile_size: u32) -> Vec<GridRect> {
+    let tile_size = grid_row_col(tile_size);
+    let width: f32 = WINDOW_SIZE.x / tile_size as f32;
+    let height: f32 = WINDOW_SIZE.y / tile_size as f32;
+
+    let mut grids: Vec<GridRect> = vec![];
+    for r in 0..tile_size {
+        for c in 0..tile_size {
+            grids.push(GridRect {
+                x: r as f32 * width - (WINDOW_SIZE.x) / 2. + width / 2.,
+                y: c as f32 * height - (WINDOW_SIZE.y) / 2. + height / 2.,
+                width,
+                height,
+            })
+        }
+    }
+
+    grids
 }
 
 fn boids_movement_system(
@@ -302,7 +359,7 @@ fn boids_raycast_drawing_system(
     mut gizmos: Gizmos,
     mut query: Query<(&mut Transform, &CurrentVolume, Option<&mut Movement>)>,
 ) {
-    let mut map: HashMap<u8, f32> = HashMap::new();
+    let mut map: HashMap<usize, f32> = HashMap::new();
     for (transform, current_volume, movement) in &query {
         if let Some(movement) = movement {
             let center = transform.translation.xy();
