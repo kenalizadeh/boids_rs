@@ -8,6 +8,7 @@ mod components;
 mod plugins;
 use components::*;
 use plugins::{
+    debug::DebugPlugin,
     movement::MovementPlugin,
     setup::{StartupPlugin, WINDOW_SIZE},
 };
@@ -20,6 +21,8 @@ const RAYCAST_DIST: f32 = 200.;
 
 fn main() {
     App::new()
+        .insert_resource(Time::<Fixed>::from_hz(60.))
+        .insert_resource(Configuration::default())
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 resolution: WindowResolution::new(WINDOW_SIZE.x, WINDOW_SIZE.y),
@@ -31,13 +34,11 @@ fn main() {
         }))
         .add_plugins(StartupPlugin)
         .add_plugins(MovementPlugin)
-        .insert_resource(Time::<Fixed>::from_hz(60.))
-        .insert_resource(Configuration::default())
+        .add_plugins(DebugPlugin)
         .add_systems(
             FixedUpdate,
             (close_on_esc, boids_raycast_drawing_system).chain(),
         )
-        .add_systems(Update, (boids_update_volumes_system, config_update_system))
         .run();
 }
 
@@ -169,31 +170,5 @@ fn boids_raycast_drawing_system(
                 movement.target_velocity = Some(velocity);
             }
         }
-    }
-}
-
-fn boids_update_volumes_system(
-    config: ResMut<Configuration>,
-    mut gizmos: Gizmos,
-    query: Query<(Entity, &CollisionVolume, &Transform)>,
-) {
-    if !config.volume_debug {
-        return;
-    }
-    for (_entity, volume, transform) in query.iter() {
-        gizmos.rect_2d(
-            transform.translation.xy(),
-            transform.rotation.to_euler(EulerRot::YXZ).2,
-            volume.shape.size(),
-            Color::PINK,
-        )
-    }
-}
-
-fn config_update_system(mut config: ResMut<Configuration>, key_input: Res<ButtonInput<KeyCode>>) {
-    if key_input.just_pressed(KeyCode::Space) {
-        config.flock_debug = !config.flock_debug;
-        config.volume_debug = !config.volume_debug;
-        config.ray_debug = !config.ray_debug;
     }
 }
