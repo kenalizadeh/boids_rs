@@ -16,12 +16,13 @@ impl Plugin for MovementPlugin {
 }
 
 fn boids_movement_system(time: Res<Time>, mut query: Query<(&mut Transform, &mut BoidMovement)>) {
-    // move boids forward the target direction
     for (mut transform, mut movement) in &mut query {
         if let Some(velocity) = movement.target_velocity {
             let angle = velocity.to_angle() * movement.rotation_speed * time.delta_seconds();
             let boid_fowrad_vec = (transform.rotation * Vec3::Y).xy();
             if (boid_fowrad_vec.to_angle() - angle).abs() < f32::EPSILON {
+                info!("movement early out");
+                movement.target_velocity = Option::None;
                 continue;
             }
             transform.rotate(Quat::from_rotation_z(angle));

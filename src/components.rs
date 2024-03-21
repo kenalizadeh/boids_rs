@@ -71,6 +71,7 @@ pub struct Wall;
 
 #[derive(Resource, Default)]
 pub struct Configuration {
+    pub movement_debug: bool,
     pub flock_debug: bool,
     pub volume_debug: bool,
     pub ray_debug: bool,

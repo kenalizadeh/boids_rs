@@ -17,7 +17,7 @@ use plugins::{
 const PI: f32 = std::f32::consts::PI;
 const RAYCAST_FOV: f32 = 270. * (PI / 180_f32);
 const RAY_COUNT: u8 = 31;
-const RAYCAST_DIST: f32 = 200.;
+const RAYCAST_DIST: f32 = 100.;
 
 fn main() {
     App::new()
@@ -37,7 +37,12 @@ fn main() {
         .add_plugins(DebugPlugin)
         .add_systems(
             FixedUpdate,
-            (close_on_esc, boids_raycast_drawing_system).chain(),
+            (
+                close_on_esc,
+                boids_flock_system,
+                boids_raycast_drawing_system,
+            )
+                .chain(),
         )
         .run();
 }
@@ -94,25 +99,62 @@ fn cast_ray_and_check(
     (hits, ray_angle - direction_angle)
 }
 
-fn filter_local_flock(
-    flock_radius: f32,
-    center: Vec2,
-    query: Query<(
+fn boids_flock_system(
+    mut gizmos: Gizmos,
+    config: Res<Configuration>,
+    mut query: Query<(
         &mut Transform,
+        &mut BoidFlock,
         &CollisionVolume,
-        Option<&mut BoidMovement>,
-        Option<&mut BoidFlock>,
+        &mut BoidMovement,
+        // Option<&mut BoidFlock>,
     )>,
 ) {
-    let mut vectors: Vec<Vec2> = vec![];
-    for (transform, _, movement, _) in query.iter() {
-        if let Some(movement) = movement {
-            let distance = center.distance(transform.translation.xy());
-            if distance <= flock_radius {
-                vectors.push(movement.velocity)
+    let mut map: HashMap<usize, f32> = HashMap::new();
+    for (transform, flock, coll_volume, _) in &query {
+        let center = transform.translation.xy();
+
+        let mut directions: Vec<f32> = vec![];
+        for (t, _, cv, mvm) in &query {
+            if cv.id == coll_volume.id {
+                continue;
+            }
+
+            let distance = center.distance(t.translation.xy());
+
+            if distance <= flock.radius {
+                directions.push(mvm.velocity.to_angle());
+                info!("id: {} | angle: {}", cv.id, mvm.velocity.to_angle());
+                if config.flock_debug {
+                    gizmos.line_2d(center, t.translation.xy(), Color::RED);
+                }
             }
         }
+
+        if directions.is_empty() {
+            continue;
+        }
+
+        let mean = mean_angle(&directions);
+        map.insert(flock.id, mean);
     }
+
+    for (_, mut flock, _, mut movement) in &mut query {
+        if let Some(angle) = map.get(&flock.id) {
+            let velocity = Vec2::from_angle(*angle) * movement.velocity.length();
+            flock.direction = velocity;
+            movement.target_velocity = Some(velocity);
+        } else {
+            flock.direction = Vec2::new(0., 0.);
+        }
+    }
+}
+
+fn mean_angle(directions: &Vec<f32>) -> f32 {
+    let len: f32 = directions.iter().len() as f32;
+    let x = directions.iter().map(|x| x.cos()).sum::<f32>() / len;
+    let y = directions.iter().map(|y| y.sin()).sum::<f32>() / len;
+    y.atan2(x)
 }
 
 fn boids_raycast_drawing_system(
@@ -126,11 +168,15 @@ fn boids_raycast_drawing_system(
     )>,
 ) {
     let mut map: HashMap<usize, f32> = HashMap::new();
-    for (transform, current_volume, movement) in &query {
+    for (transform, coll_volume, movement) in &query {
         // ray-casting
         if let Some(movement) = movement {
             let center = transform.translation.xy();
-            let direction_angle = movement.velocity.to_angle();
+            let direction_angle = movement
+                .velocity
+                // .target_velocity
+                // .unwrap_or(movement.velocity)
+                .to_angle();
 
             if config.ray_debug {
                 gizmos.arc_2d(
@@ -147,18 +193,18 @@ fn boids_raycast_drawing_system(
                     &mut gizmos,
                     center,
                     direction_angle,
-                    current_volume,
+                    coll_volume,
                     &query,
                     config.ray_debug,
                 );
 
                 if !hits {
-                    map.insert(current_volume.id, angle);
+                    map.insert(coll_volume.id, angle);
                     break;
                 }
             }
-            if map.get(&current_volume.id).is_none() {
-                map.insert(current_volume.id, PI / 2.);
+            if map.get(&coll_volume.id).is_none() {
+                map.insert(coll_volume.id, PI / 2.);
             }
         }
     }
@@ -170,5 +216,21 @@ fn boids_raycast_drawing_system(
                 movement.target_velocity = Some(velocity);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::mean_angle;
+
+    #[test]
+    fn test_mean_angles_symmetric_three() {
+        let angles: Vec<f32> = vec![
+            f32::to_radians(45.),
+            f32::to_radians(90.),
+            f32::to_radians(0.),
+        ];
+
+        assert_eq!(f32::to_radians(45.), mean_angle(&angles));
     }
 }

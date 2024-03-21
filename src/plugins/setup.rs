@@ -3,7 +3,7 @@ use bevy::{math::primitives::Rectangle, prelude::*, sprite::MaterialMesh2dBundle
 
 /// global properties
 pub const WINDOW_SIZE: Vec2 = Vec2::new(1900_f32, 1200_f32);
-const BOID_COUNT: u8 = 64;
+const BOID_COUNT: usize = 22;
 
 /// Walls
 const WALL_THICKNESS: f32 = 10.0;
@@ -67,7 +67,8 @@ fn setup(
     // }
 
     let ship_handle = asset_server.load("textures/berd.png");
-    for (idx, grid) in grids_vec.iter().enumerate() {
+    assert!(grids_vec.len() >= BOID_COUNT);
+    for (idx, grid) in grids_vec.iter().take(BOID_COUNT).enumerate() {
         let direction_degrees = fastrand::f32() * 360.0;
         let direction_degrees = direction_degrees.to_radians();
         commands.spawn((
@@ -77,11 +78,11 @@ fn setup(
                     .with_rotation(Quat::from_rotation_z(direction_degrees)),
                 ..default()
             },
-            CollisionVolume::new(idx * 10, Rectangle::from_size(BOID_SIZE)),
             BoidMovement::new(
                 Vec2::from_angle(direction_degrees) * BOID_SPEED,
                 std::f32::consts::PI,
             ),
+            CollisionVolume::new(idx, Rectangle::from_size(BOID_SIZE)),
             BoidFlock::new(idx),
         ));
     }
@@ -112,30 +113,31 @@ fn tile_window(tile_size: u32) -> Vec<GridRect> {
 }
 
 fn walls_slice() -> &'static [(usize, f32, f32, f32, f32)] {
+    const OFFSET: usize = BOID_COUNT + 10;
     &[
         (
-            1_usize,
+            1_usize + OFFSET,
             HORIZONTAL_WALL_SIZE,
             WALL_THICKNESS,
             0_f32,
             TOP_WALL_POS,
         ),
         (
-            2_usize,
+            2_usize + OFFSET,
             WALL_THICKNESS,
             VERTICAL_WALL_SIZE,
             LEFT_WALL_POS,
             0_f32,
         ),
         (
-            3_usize,
+            3_usize + OFFSET,
             HORIZONTAL_WALL_SIZE,
             WALL_THICKNESS,
             0_f32,
             BOTTOM_WALL_POS,
         ),
         (
-            4_usize,
+            4_usize + OFFSET,
             WALL_THICKNESS,
             VERTICAL_WALL_SIZE,
             RIGHT_WALL_POS,
