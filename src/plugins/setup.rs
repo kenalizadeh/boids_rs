@@ -1,19 +1,27 @@
-use crate::{BoidFlock, BoidMovement, CollisionVolume, GridRect, Wall};
-use bevy::{math::primitives::Rectangle, prelude::*, sprite::MaterialMesh2dBundle};
+use crate::{
+    AlignmentRule, BoidFlock, BoidMovement, CohesionRule, CollisionVolume, GridRect,
+    SeparationRule, Wall,
+};
+use bevy::{
+    math::primitives::Rectangle,
+    prelude::*,
+    sprite::{MaterialMesh2dBundle, Mesh2dHandle},
+    window::WindowResized,
+};
+use core::panic;
 
 /// global properties
-pub const WINDOW_SIZE: Vec2 = Vec2::new(1900_f32, 1200_f32);
+pub const INITIAL_WINDOW_SIZE: Vec2 = Vec2::new(2560_f32, 1800_f32);
 const BOID_COUNT: usize = 22;
 
 /// Walls
+const WALL_ID_OFFSET: usize = BOID_COUNT + 10;
+const TOP_WALL_ID: usize = WALL_ID_OFFSET + 1;
+const LEFT_WALL_ID: usize = WALL_ID_OFFSET + 2;
+const BOTTOM_WALL_ID: usize = WALL_ID_OFFSET + 3;
+const RIGHT_WALL_ID: usize = WALL_ID_OFFSET + 4;
 const WALL_THICKNESS: f32 = 10.0;
-const TOP_WALL_POS: f32 = WINDOW_SIZE.y / 2.0 - WALL_THICKNESS;
-const LEFT_WALL_POS: f32 = -WINDOW_SIZE.x / 2.0 + WALL_THICKNESS;
-const RIGHT_WALL_POS: f32 = WINDOW_SIZE.x / 2.0 - WALL_THICKNESS;
-const BOTTOM_WALL_POS: f32 = -WINDOW_SIZE.y / 2.0 + WALL_THICKNESS;
 const WALL_Z: f32 = 10.0;
-const HORIZONTAL_WALL_SIZE: f32 = RIGHT_WALL_POS - LEFT_WALL_POS + WALL_THICKNESS;
-const VERTICAL_WALL_SIZE: f32 = TOP_WALL_POS - BOTTOM_WALL_POS + WALL_THICKNESS;
 const WALL_COLOR: Color = Color::DARK_GREEN;
 
 /// boid spawn properties
@@ -25,6 +33,7 @@ pub struct StartupPlugin;
 impl Plugin for StartupPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, setup);
+        app.add_systems(Update, window_walls_resize_system);
     }
 }
 
@@ -37,18 +46,21 @@ fn setup(
     commands.spawn(Camera2dBundle::default());
 
     // WALLS
-    for &(id, v_size, h_size, x_pos, y_pos) in walls_slice() {
+    for &(id, (pos, size)) in &[
+        (TOP_WALL_ID, get_top_wall_rect(INITIAL_WINDOW_SIZE)),
+        (LEFT_WALL_ID, get_left_wall_rect(INITIAL_WINDOW_SIZE)),
+        (BOTTOM_WALL_ID, get_bottom_wall_rect(INITIAL_WINDOW_SIZE)),
+        (RIGHT_WALL_ID, get_right_wall_rect(INITIAL_WINDOW_SIZE)),
+    ] {
         commands.spawn((
             MaterialMesh2dBundle {
-                mesh: meshes
-                    .add(bevy_math::primitives::Rectangle::new(v_size, h_size))
-                    .into(),
+                mesh: meshes.add(size).into(),
                 material: materials.add(ColorMaterial::from(WALL_COLOR)),
-                transform: Transform::from_translation(Vec3::new(x_pos, y_pos, WALL_Z)),
+                transform: Transform::from_translation(Vec3::new(pos.x, pos.y, WALL_Z)),
                 ..default()
             },
-            Wall,
-            CollisionVolume::new(id, Rectangle::new(v_size, h_size)),
+            Wall::new(size),
+            CollisionVolume::new(id, size),
         ));
     }
 
@@ -78,6 +90,9 @@ fn setup(
                     .with_rotation(Quat::from_rotation_z(direction_degrees)),
                 ..default()
             },
+            SeparationRule::new(1., Option::None),
+            AlignmentRule::new(1., Option::None),
+            CohesionRule::new(1., Option::None),
             BoidMovement::new(
                 Vec2::from_angle(direction_degrees) * BOID_SPEED,
                 std::f32::consts::PI,
@@ -94,15 +109,15 @@ fn grid_row_col(x: u32) -> u32 {
 
 fn tile_window(tile_size: u32) -> Vec<GridRect> {
     let tile_size = grid_row_col(tile_size);
-    let width: f32 = WINDOW_SIZE.x / tile_size as f32;
-    let height: f32 = WINDOW_SIZE.y / tile_size as f32;
+    let width: f32 = INITIAL_WINDOW_SIZE.x / tile_size as f32;
+    let height: f32 = INITIAL_WINDOW_SIZE.y / tile_size as f32;
 
     let mut grids: Vec<GridRect> = vec![];
     for r in 0..tile_size {
         for c in 0..tile_size {
             grids.push(GridRect::new(
-                r as f32 * width - (WINDOW_SIZE.x) / 2. + width / 2.,
-                c as f32 * height - (WINDOW_SIZE.y) / 2. + height / 2.,
+                r as f32 * width - (INITIAL_WINDOW_SIZE.x) / 2. + width / 2.,
+                c as f32 * height - (INITIAL_WINDOW_SIZE.y) / 2. + height / 2.,
                 width,
                 height,
             ))
@@ -112,36 +127,60 @@ fn tile_window(tile_size: u32) -> Vec<GridRect> {
     grids
 }
 
-fn walls_slice() -> &'static [(usize, f32, f32, f32, f32)] {
-    const OFFSET: usize = BOID_COUNT + 10;
-    &[
-        (
-            1_usize + OFFSET,
-            HORIZONTAL_WALL_SIZE,
-            WALL_THICKNESS,
-            0_f32,
-            TOP_WALL_POS,
-        ),
-        (
-            2_usize + OFFSET,
-            WALL_THICKNESS,
-            VERTICAL_WALL_SIZE,
-            LEFT_WALL_POS,
-            0_f32,
-        ),
-        (
-            3_usize + OFFSET,
-            HORIZONTAL_WALL_SIZE,
-            WALL_THICKNESS,
-            0_f32,
-            BOTTOM_WALL_POS,
-        ),
-        (
-            4_usize + OFFSET,
-            WALL_THICKNESS,
-            VERTICAL_WALL_SIZE,
-            RIGHT_WALL_POS,
-            0_f32,
-        ),
-    ]
+fn window_walls_resize_system(
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut wall_query: Query<(
+        &mut Transform,
+        &mut Mesh2dHandle,
+        &mut Wall,
+        &mut CollisionVolume,
+    )>,
+    mut resize_reader: EventReader<WindowResized>,
+) {
+    if let Some(window) = resize_reader.read().next() {
+        let res = Vec2::new(window.width, window.height);
+
+        for (mut transform, mut mesh, mut wall, mut coll_volume) in &mut wall_query {
+            let (pos, rect) = match coll_volume.id {
+                TOP_WALL_ID => get_top_wall_rect(res),
+                LEFT_WALL_ID => get_left_wall_rect(res),
+                BOTTOM_WALL_ID => get_bottom_wall_rect(res),
+                RIGHT_WALL_ID => get_right_wall_rect(res),
+                _ => panic!("wall id not found"),
+            };
+
+            *mesh = meshes.add(rect).into();
+            transform.translation = Vec3::new(pos.x, pos.y, WALL_Z);
+            wall.rect = rect;
+            coll_volume.shape = rect;
+        }
+    }
+}
+
+fn get_top_wall_rect(res: Vec2) -> (Vec2, Rectangle) {
+    (
+        Vec2::new(0., res.y / 2.0 - WALL_THICKNESS),
+        Rectangle::new(res.x - WALL_THICKNESS, WALL_THICKNESS),
+    )
+}
+
+fn get_left_wall_rect(res: Vec2) -> (Vec2, Rectangle) {
+    (
+        Vec2::new(-res.x / 2. + WALL_THICKNESS, 0.),
+        Rectangle::new(WALL_THICKNESS, res.y - WALL_THICKNESS),
+    )
+}
+
+fn get_bottom_wall_rect(res: Vec2) -> (Vec2, Rectangle) {
+    (
+        Vec2::new(0., -res.y / 2.0 + WALL_THICKNESS),
+        Rectangle::new(res.x - WALL_THICKNESS, WALL_THICKNESS),
+    )
+}
+
+fn get_right_wall_rect(res: Vec2) -> (Vec2, Rectangle) {
+    (
+        Vec2::new(res.x / 2. - WALL_THICKNESS, 0.),
+        Rectangle::new(WALL_THICKNESS, res.y - WALL_THICKNESS),
+    )
 }

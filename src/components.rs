@@ -1,5 +1,5 @@
 use bevy::ecs::{component::Component, system::Resource};
-use bevy_math::{primitives::Rectangle, Vec2};
+use bevy_math::{primitives::Rectangle, Vec2, Vec4};
 
 #[derive(Component)]
 pub struct CollisionVolume {
@@ -67,7 +67,15 @@ impl BoidMovement {
 }
 
 #[derive(Component)]
-pub struct Wall;
+pub struct Wall {
+    pub rect: Rectangle,
+}
+
+impl Wall {
+    pub fn new(rect: Rectangle) -> Self {
+        Self { rect }
+    }
+}
 
 #[derive(Resource, Default)]
 pub struct Configuration {
@@ -75,4 +83,46 @@ pub struct Configuration {
     pub flock_debug: bool,
     pub volume_debug: bool,
     pub ray_debug: bool,
+}
+
+#[derive(Component)]
+pub struct SeparationRule {
+    // between 0.0 and 1.0
+    // 0 means off
+    pub factor: f32,
+    pub velocity: Option<Vec2>,
+}
+
+impl SeparationRule {
+    pub fn new(factor: f32, velocity: Option<Vec2>) -> Self {
+        Self { factor, velocity }
+    }
+}
+
+#[derive(Component)]
+pub struct AlignmentRule {
+    // between 0.0 and 1.0
+    // 0 means off
+    pub factor: f32,
+    pub velocity: Option<Vec2>,
+}
+
+impl AlignmentRule {
+    pub fn new(factor: f32, velocity: Option<Vec2>) -> Self {
+        Self { factor, velocity }
+    }
+}
+
+#[derive(Component)]
+pub struct CohesionRule {
+    // between 0.0 and 1.0
+    // 0 means off
+    pub factor: f32,
+    pub velocity: Option<Vec2>,
+}
+
+impl CohesionRule {
+    pub fn new(factor: f32, velocity: Option<Vec2>) -> Self {
+        Self { factor, velocity }
+    }
 }
