@@ -1,6 +1,5 @@
 use crate::{
-    AlignmentRule, BoidFlock, BoidMovement, CohesionRule, CollisionVolume, GridRect,
-    SeparationRule, Wall,
+    AlignmentRule, BoidMovement, CohesionRule, CollisionVolume, GridRect, SeparationRule, Wall,
 };
 use bevy::{
     math::primitives::Rectangle,
@@ -9,6 +8,7 @@ use bevy::{
     window::WindowResized,
 };
 use core::panic;
+use std::f32::consts::PI;
 
 /// global properties
 pub const INITIAL_WINDOW_SIZE: Vec2 = Vec2::new(2560_f32, 1800_f32);
@@ -26,7 +26,7 @@ const WALL_COLOR: Color = Color::DARK_GREEN;
 
 /// boid spawn properties
 const BOID_SIZE: Vec2 = Vec2::new(20., 60.);
-const BOID_SPEED: f32 = 50.;
+pub const BOID_SPEED: f32 = 50.;
 
 pub struct StartupPlugin;
 
@@ -87,18 +87,13 @@ fn setup(
             SpriteBundle {
                 texture: ship_handle.clone(),
                 transform: Transform::from_xyz(grid.x, grid.y, 0.0)
-                    .with_rotation(Quat::from_rotation_z(direction_degrees)),
+                    .with_rotation(Quat::from_rotation_z(direction_degrees - PI / 2.)),
                 ..default()
             },
-            SeparationRule::new(1., Option::None),
-            AlignmentRule::new(1., Option::None),
-            CohesionRule::new(1., Option::None),
-            BoidMovement::new(
-                Vec2::from_angle(direction_degrees) * BOID_SPEED,
-                std::f32::consts::PI,
-            ),
-            CollisionVolume::new(idx, Rectangle::from_size(BOID_SIZE)),
-            BoidFlock::new(idx),
+            SeparationRule::new(idx, 100., 1., Vec2::ZERO),
+            AlignmentRule::new(idx, 100., 1., Vec2::ZERO),
+            CohesionRule::new(idx, 100., 1., Vec2::ZERO),
+            BoidMovement::new(direction_degrees, std::f32::consts::PI),
         ));
     }
 }

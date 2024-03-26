@@ -1,5 +1,5 @@
 use bevy::ecs::{component::Component, system::Resource};
-use bevy_math::{primitives::Rectangle, Vec2, Vec4};
+use bevy_math::{primitives::Rectangle, Vec2};
 
 #[derive(Component)]
 pub struct CollisionVolume {
@@ -51,16 +51,14 @@ impl BoidFlock {
 
 #[derive(Component, Default)]
 pub struct BoidMovement {
-    pub velocity: Vec2,
-    pub target_velocity: Option<Vec2>,
+    pub target_angle: f32,
     pub rotation_speed: f32,
 }
 
 impl BoidMovement {
-    pub fn new(velocity: Vec2, rotation_speed: f32) -> Self {
+    pub fn new(target_angle: f32, rotation_speed: f32) -> Self {
         Self {
-            velocity,
-            target_velocity: Option::None,
+            target_angle,
             rotation_speed,
         }
     }
@@ -87,42 +85,63 @@ pub struct Configuration {
 
 #[derive(Component)]
 pub struct SeparationRule {
+    pub id: usize,
+    pub radius: f32,
     // between 0.0 and 1.0
     // 0 means off
     pub factor: f32,
-    pub velocity: Option<Vec2>,
+    pub velocity: Vec2,
 }
 
 impl SeparationRule {
-    pub fn new(factor: f32, velocity: Option<Vec2>) -> Self {
-        Self { factor, velocity }
+    pub fn new(id: usize, radius: f32, factor: f32, velocity: Vec2) -> Self {
+        Self {
+            id,
+            radius,
+            factor,
+            velocity,
+        }
     }
 }
 
 #[derive(Component)]
 pub struct AlignmentRule {
+    pub id: usize,
+    pub radius: f32,
     // between 0.0 and 1.0
     // 0 means off
     pub factor: f32,
-    pub velocity: Option<Vec2>,
+    pub velocity: Vec2,
 }
 
 impl AlignmentRule {
-    pub fn new(factor: f32, velocity: Option<Vec2>) -> Self {
-        Self { factor, velocity }
+    pub fn new(id: usize, radius: f32, factor: f32, velocity: Vec2) -> Self {
+        Self {
+            id,
+            radius,
+            factor,
+            velocity,
+        }
     }
 }
 
 #[derive(Component)]
 pub struct CohesionRule {
+    pub id: usize,
+    pub radius: f32,
     // between 0.0 and 1.0
     // 0 means off
     pub factor: f32,
-    pub velocity: Option<Vec2>,
+    pub velocity: Vec2,
 }
 
 impl CohesionRule {
-    pub fn new(factor: f32, velocity: Option<Vec2>) -> Self {
-        Self { factor, velocity }
+    pub fn new(id: usize, radius: f32, factor: f32, velocity: Vec2) -> Self {
+        Self {
+            id,
+            radius,
+            factor,
+            velocity,
+        }
     }
 }

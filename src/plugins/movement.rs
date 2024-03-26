@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use crate::BoidMovement;
 use bevy::{
     ecs::system::{Query, Res},
@@ -30,6 +32,12 @@ fn boids_movement_system(time: Res<Time>, mut query: Query<(&mut Transform, &mut
                 transform.rotation * Vec3::Y * velocity.length() * time.delta_seconds();
             transform.translation += translation_delta;
             movement.velocity = (transform.rotation * Vec3::Y).xy() * velocity.length();
+        } else {
+            let angle = movement.velocity.to_angle();
+            transform.rotation = Quat::from_rotation_z(angle - PI / 2.);
+            let translation_delta =
+                transform.rotation * Vec3::Y * movement.velocity.length() * time.delta_seconds();
+            transform.translation += translation_delta;
         }
     }
 }
