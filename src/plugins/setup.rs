@@ -8,7 +8,6 @@ use bevy::{
     window::WindowResized,
 };
 use core::panic;
-use std::f32::consts::PI;
 
 /// global properties
 pub const INITIAL_WINDOW_SIZE: Vec2 = Vec2::new(2560_f32, 1800_f32);
@@ -26,7 +25,6 @@ const WALL_COLOR: Color = Color::DARK_GREEN;
 
 /// boid spawn properties
 const BOID_SIZE: Vec2 = Vec2::new(20., 60.);
-pub const BOID_SPEED: f32 = 50.;
 
 pub struct StartupPlugin;
 
@@ -78,24 +76,43 @@ fn setup(
     //     });
     // }
 
-    let ship_handle = asset_server.load("textures/berd.png");
+    // let boid_handle = asset_server.load("textures/berd.png");
     assert!(grids_vec.len() >= BOID_COUNT);
     for (idx, grid) in grids_vec.iter().take(BOID_COUNT).enumerate() {
-        let direction_degrees = fastrand::f32() * 360.0;
-        let direction_degrees = direction_degrees.to_radians();
+        let direction_degrees = (fastrand::f32() * 360.0).to_radians();
+        let target_degrees = (fastrand::f32() * 360.0).to_radians();
+        let rand_color = make_random_pastel_color();
+
         commands.spawn((
-            SpriteBundle {
-                texture: ship_handle.clone(),
+            MaterialMesh2dBundle {
+                mesh: meshes.add(RegularPolygon::new(20., 3)).into(),
+                material: materials.add(ColorMaterial::from(rand_color)),
                 transform: Transform::from_xyz(grid.x, grid.y, 0.0)
-                    .with_rotation(Quat::from_rotation_z(direction_degrees - PI / 2.)),
+                    .with_rotation(Quat::from_rotation_z(direction_degrees)),
                 ..default()
             },
+            // SpriteBundle {
+            //     texture: boid_handle.clone(),
+            //     transform: Transform::from_xyz(grid.x, grid.y, 0.0)
+            //         .with_rotation(Quat::from_rotation_z(direction_degrees)),
+            //     ..default()
+            // },
             SeparationRule::new(idx, 100., 1., Vec2::ZERO),
             AlignmentRule::new(idx, 100., 1., Vec2::ZERO),
             CohesionRule::new(idx, 100., 1., Vec2::ZERO),
-            BoidMovement::new(direction_degrees, std::f32::consts::PI),
+            BoidMovement::new(90., target_degrees, std::f32::consts::PI),
         ));
     }
+}
+
+fn make_random_pastel_color() -> Color {
+    const LIGHT_BLUE: Color = Color::rgb(173. / 255., 216. / 255., 230. / 255.);
+
+    Color::rgb(
+        (fastrand::f32() + LIGHT_BLUE.r()) / 2.,
+        (fastrand::f32() + LIGHT_BLUE.g()) / 2.,
+        (fastrand::f32() + LIGHT_BLUE.b()) / 2.,
+    )
 }
 
 fn grid_row_col(x: u32) -> u32 {

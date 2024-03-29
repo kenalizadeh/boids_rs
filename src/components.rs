@@ -32,32 +32,17 @@ impl GridRect {
     }
 }
 
-#[derive(Component)]
-pub struct BoidFlock {
-    pub id: usize,
-    pub radius: f32,
-    pub direction: Vec2,
-}
-
-impl BoidFlock {
-    pub fn new(id: usize) -> Self {
-        Self {
-            id,
-            radius: 150.,
-            direction: Vec2::new(0., 0.),
-        }
-    }
-}
-
 #[derive(Component, Default)]
 pub struct BoidMovement {
+    pub speed: f32,
     pub target_angle: f32,
     pub rotation_speed: f32,
 }
 
 impl BoidMovement {
-    pub fn new(target_angle: f32, rotation_speed: f32) -> Self {
+    pub fn new(speed: f32, target_angle: f32, rotation_speed: f32) -> Self {
         Self {
+            speed,
             target_angle,
             rotation_speed,
         }
