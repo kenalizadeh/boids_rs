@@ -41,10 +41,10 @@ fn setup(
 
     // WALLS
     for &(id, (pos, size)) in &[
-        (TOP_WALL_ID, get_top_wall_rect(INITIAL_WINDOW_SIZE)),
-        (LEFT_WALL_ID, get_left_wall_rect(INITIAL_WINDOW_SIZE)),
-        (BOTTOM_WALL_ID, get_bottom_wall_rect(INITIAL_WINDOW_SIZE)),
-        (RIGHT_WALL_ID, get_right_wall_rect(INITIAL_WINDOW_SIZE)),
+        (TOP_WALL_ID, get_top_wall_frame(INITIAL_WINDOW_SIZE)),
+        (LEFT_WALL_ID, get_left_wall_frame(INITIAL_WINDOW_SIZE)),
+        (BOTTOM_WALL_ID, get_bottom_wall_frame(INITIAL_WINDOW_SIZE)),
+        (RIGHT_WALL_ID, get_right_wall_frame(INITIAL_WINDOW_SIZE)),
     ] {
         commands.spawn((
             MaterialMesh2dBundle {
@@ -59,21 +59,8 @@ fn setup(
     }
 
     let grids_vec = tile_window(BOID_COUNT as u32);
-    // for grid in grids_vec {
-    //     commands.spawn(MaterialMesh2dBundle {
-    //         mesh: meshes.add(Rectangle::new(grid.width, grid.height)).into(),
-    //         material: materials.add(ColorMaterial::from(Color::rgb(
-    //             fastrand::f32(),
-    //             fastrand::f32(),
-    //             fastrand::f32(),
-    //         ))),
-    //         transform: Transform::from_xyz(grid.x, grid.y, 0.),
-    //         ..default()
-    //     });
-    // }
-
-    // let boid_handle = asset_server.load("textures/berd.png");
     assert!(grids_vec.len() >= BOID_COUNT);
+
     for (idx, grid) in grids_vec.iter().take(BOID_COUNT).enumerate() {
         let direction_degrees = (fastrand::f32() * 360.0).to_radians();
         let target_degrees = (fastrand::f32() * 360.0).to_radians();
@@ -87,12 +74,6 @@ fn setup(
                     .with_rotation(Quat::from_rotation_z(direction_degrees)),
                 ..default()
             },
-            // SpriteBundle {
-            //     texture: boid_handle.clone(),
-            //     transform: Transform::from_xyz(grid.x, grid.y, 0.0)
-            //         .with_rotation(Quat::from_rotation_z(direction_degrees)),
-            //     ..default()
-            // },
             SeparationRule::new(idx, 100., 1., Vec2::ZERO),
             AlignmentRule::new(idx, 100., 1., Vec2::ZERO),
             CohesionRule::new(idx, 100., 1., Vec2::ZERO),
@@ -102,12 +83,14 @@ fn setup(
 }
 
 fn make_random_pastel_color() -> Color {
-    const LIGHT_BLUE: Color = Color::rgb(173. / 255., 216. / 255., 230. / 255.);
+    const LIGHT_BLUE_R: f32 = 173. / 255.;
+    const LIGHT_BLUE_G: f32 = 216. / 255.;
+    const LIGHT_BLUE_B: f32 = 230. / 255.;
 
     Color::rgb(
-        (fastrand::f32() + LIGHT_BLUE.r()) / 2.,
-        (fastrand::f32() + LIGHT_BLUE.g()) / 2.,
-        (fastrand::f32() + LIGHT_BLUE.b()) / 2.,
+        (fastrand::f32() + LIGHT_BLUE_R) / 2.,
+        (fastrand::f32() + LIGHT_BLUE_G) / 2.,
+        (fastrand::f32() + LIGHT_BLUE_B) / 2.,
     )
 }
 
@@ -150,11 +133,11 @@ fn window_walls_resize_system(
 
         for (mut transform, mut mesh, mut wall, mut coll_volume) in &mut wall_query {
             let (pos, rect) = match coll_volume.id {
-                TOP_WALL_ID => get_top_wall_rect(res),
-                LEFT_WALL_ID => get_left_wall_rect(res),
-                BOTTOM_WALL_ID => get_bottom_wall_rect(res),
-                RIGHT_WALL_ID => get_right_wall_rect(res),
-                _ => panic!("wall id not found"),
+                TOP_WALL_ID => get_top_wall_frame(res),
+                LEFT_WALL_ID => get_left_wall_frame(res),
+                BOTTOM_WALL_ID => get_bottom_wall_frame(res),
+                RIGHT_WALL_ID => get_right_wall_frame(res),
+                _ => panic!("wall not found"),
             };
 
             *mesh = meshes.add(rect).into();
@@ -165,28 +148,30 @@ fn window_walls_resize_system(
     }
 }
 
-fn get_top_wall_rect(res: Vec2) -> (Vec2, Rectangle) {
+type WallFrame = (Vec2, Rectangle);
+
+fn get_top_wall_frame(res: Vec2) -> WallFrame {
     (
         Vec2::new(0., res.y / 2.0 - WALL_THICKNESS),
         Rectangle::new(res.x - WALL_THICKNESS, WALL_THICKNESS),
     )
 }
 
-fn get_left_wall_rect(res: Vec2) -> (Vec2, Rectangle) {
+fn get_left_wall_frame(res: Vec2) -> WallFrame {
     (
         Vec2::new(-res.x / 2. + WALL_THICKNESS, 0.),
         Rectangle::new(WALL_THICKNESS, res.y - WALL_THICKNESS),
     )
 }
 
-fn get_bottom_wall_rect(res: Vec2) -> (Vec2, Rectangle) {
+fn get_bottom_wall_frame(res: Vec2) -> WallFrame {
     (
         Vec2::new(0., -res.y / 2.0 + WALL_THICKNESS),
         Rectangle::new(res.x - WALL_THICKNESS, WALL_THICKNESS),
     )
 }
 
-fn get_right_wall_rect(res: Vec2) -> (Vec2, Rectangle) {
+fn get_right_wall_frame(res: Vec2) -> WallFrame {
     (
         Vec2::new(res.x / 2. - WALL_THICKNESS, 0.),
         Rectangle::new(WALL_THICKNESS, res.y - WALL_THICKNESS),

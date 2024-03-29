@@ -12,16 +12,17 @@ impl Plugin for MovementPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             FixedUpdate,
-            (boids_rotation_system, boids_movement_system).chain(),
+            (
+                boids_rotation_system,
+                boids_forward_movement_system,
+                boids_teleport_system,
+            )
+                .chain(),
         );
     }
 }
 
-fn boids_rotation_system(
-    mut gizmos: Gizmos,
-    time: Res<Time>,
-    mut query: Query<(&mut Transform, &BoidMovement)>,
-) {
+fn boids_rotation_system(time: Res<Time>, mut query: Query<(&mut Transform, &BoidMovement)>) {
     for (mut transform, movement) in &mut query {
         let curr_vel = (transform.rotation * Vec3::Y).xy();
         let target_vel = Vec2::from_angle(movement.target_angle).normalize();
@@ -43,39 +44,52 @@ fn boids_rotation_system(
             rotation_sign * (movement.rotation_speed * time.delta_seconds()).min(max_angle);
 
         transform.rotate_z(rotation_angle);
-
-        // gizmos.arrow_2d(
-        //     transform.translation.xy(),
-        //     transform.translation.xy() + Vec2::from_angle(movement.target_angle).normalize() * 30.,
-        //     Color::YELLOW,
-        // );
     }
 }
 
-fn boids_movement_system(
-    mut gizmos: Gizmos,
+fn boids_forward_movement_system(
     time: Res<Time>,
     mut query: Query<(&mut Transform, &BoidMovement), With<BoidMovement>>,
 ) {
     for (mut transform, movement) in &mut query {
-        // let translation_delta = transform.rotation * Vec3::Y * 30. * time.delta_seconds();
-        // transform.translation += translation_delta;
-
-        // get the ship's forward vector by applying the current rotation to the ships initial facing
-        // vector
         let movement_direction = transform.rotation * Vec3::Y;
-        // get the distance the ship will move based on direction, the ship's movement speed and delta
-        // time
         let movement_distance = movement.speed * time.delta_seconds();
-        // create the change in translation using the new movement direction and distance
         let translation_delta = movement_direction * movement_distance;
-        // update the ship translation with our new translation delta
         transform.translation += translation_delta;
+    }
+}
 
-        gizmos.arrow_2d(
-            transform.translation.xy(),
-            transform.translation.xy() + movement_direction.xy().normalize() * 30.,
-            Color::CRIMSON,
-        );
+fn boids_teleport_system(
+    mut query: Query<&mut Transform, With<BoidMovement>>,
+    window_query: Query<&Window>,
+) {
+    let window = window_query.single();
+    let left_bound: f32 = -(window.width() / 2.);
+    let right_bound: f32 = window.width() / 2.;
+    let bottom_bound: f32 = -(window.height() / 2.);
+    let top_bound: f32 = window.height() / 2.;
+
+    for mut transform in &mut query {
+        let center = transform.translation.xy();
+
+        match center.x {
+            x if x > right_bound => {
+                transform.translation.x = left_bound;
+            }
+            x if x < left_bound => {
+                transform.translation.x = right_bound;
+            }
+            _ => (),
+        }
+
+        match center.y {
+            y if y > top_bound => {
+                transform.translation.y = bottom_bound;
+            }
+            y if y < bottom_bound => {
+                transform.translation.y = top_bound;
+            }
+            _ => (),
+        }
     }
 }
