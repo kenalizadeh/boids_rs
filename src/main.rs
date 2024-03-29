@@ -1,7 +1,7 @@
 use bevy::{
     prelude::*,
     utils::HashMap,
-    window::{close_on_esc, WindowResolution},
+    window::{close_on_esc, WindowResized, WindowResolution},
 };
 mod components;
 mod plugins;
@@ -54,6 +54,7 @@ fn main() {
                 alignment_system,
                 cohesion_system,
                 velocity_system,
+                boids_teleport_system,
             )
                 .chain(),
         )
@@ -62,11 +63,11 @@ fn main() {
 
 fn separation_system(
     mut gizmos: Gizmos,
-    mut query: Query<(&GlobalTransform, &BoidMovement, &mut SeparationRule)>,
+    mut query: Query<(&GlobalTransform, &mut SeparationRule)>,
     debug: Res<BoidDebug>,
 ) {
     let mut velocity_map: HashMap<usize, Vec2> = HashMap::new();
-    for (current_transform, _, current_separation) in &query {
+    for (current_transform, current_separation) in &query {
         let current_center = current_transform.translation().xy();
         let mut nearby_boid_count = 0_f32;
         let mut velocity = Vec2::ZERO;
@@ -77,7 +78,7 @@ fn separation_system(
             gizmos.circle_2d(current_center, current_separation.radius, Color::CYAN);
         }
 
-        for (transform, movement, separation) in &query {
+        for (transform, separation) in &query {
             if separation.id == current_separation.id {
                 continue;
             }
@@ -114,7 +115,7 @@ fn separation_system(
         }
     }
 
-    for (_, _, mut separation) in &mut query {
+    for (_, mut separation) in &mut query {
         if let Some(vel) = velocity_map.get(&separation.id) {
             separation.velocity = *vel;
         }
@@ -123,11 +124,11 @@ fn separation_system(
 
 fn alignment_system(
     mut gizmos: Gizmos,
-    mut query: Query<(&Transform, &BoidMovement, &mut AlignmentRule)>,
+    mut query: Query<(&Transform, &mut AlignmentRule)>,
     debug: Res<BoidDebug>,
 ) {
     let mut velocity_map: HashMap<usize, Vec2> = HashMap::new();
-    for (current_transform, _, current_alignment) in &query {
+    for (current_transform, current_alignment) in &query {
         let current_center = current_transform.translation.xy();
         let mut nearby_boid_count = 0_f32;
         let mut velocity = Vec2::ZERO;
@@ -136,7 +137,7 @@ fn alignment_system(
             gizmos.circle_2d(current_center, current_alignment.radius, Color::CYAN);
         }
 
-        for (transform, movement, alignment) in &query {
+        for (transform, alignment) in &query {
             if alignment.id == current_alignment.id {
                 continue;
             }
@@ -177,7 +178,7 @@ fn alignment_system(
         }
     }
 
-    for (_, _, mut alignment) in &mut query {
+    for (_, mut alignment) in &mut query {
         if let Some(vel) = velocity_map.get(&alignment.id) {
             alignment.velocity = *vel;
         }
@@ -186,11 +187,11 @@ fn alignment_system(
 
 fn cohesion_system(
     mut gizmos: Gizmos,
-    mut query: Query<(&GlobalTransform, &BoidMovement, &mut CohesionRule)>,
+    mut query: Query<(&GlobalTransform, &mut CohesionRule)>,
     debug: Res<BoidDebug>,
 ) {
     let mut velocity_map: HashMap<usize, Vec2> = HashMap::new();
-    for (current_transform, _, current_cohesion) in &query {
+    for (current_transform, current_cohesion) in &query {
         let current_center = current_transform.translation().xy();
         let mut nearby_boid_count = 0_f32;
         let mut center_of_mass = current_center;
@@ -200,7 +201,7 @@ fn cohesion_system(
             gizmos.circle_2d(current_center, current_cohesion.radius, Color::CYAN);
         }
 
-        for (transform, movement, cohesion) in &query {
+        for (transform, cohesion) in &query {
             if cohesion.id == current_cohesion.id {
                 continue;
             }
@@ -209,14 +210,6 @@ fn cohesion_system(
             let distance = current_center.distance(center);
             if distance > current_cohesion.radius {
                 continue;
-            }
-
-            if debug.id == current_cohesion.id {
-                gizmos.arrow_2d(
-                    center,
-                    center + Vec2::from_angle(movement.target_angle) * 30.,
-                    Color::LIME_GREEN,
-                );
             }
 
             center_of_mass += center;
@@ -247,7 +240,7 @@ fn cohesion_system(
         }
     }
 
-    for (_, _, mut alignment) in &mut query {
+    for (_, mut alignment) in &mut query {
         if let Some(vel) = velocity_map.get(&alignment.id) {
             alignment.velocity = *vel;
         }
@@ -276,6 +269,41 @@ fn velocity_system(
 
         if !velocity.is_nan() {
             movement.target_angle = velocity.to_angle();
+        }
+    }
+}
+
+fn boids_teleport_system(
+    mut query: Query<&mut Transform, With<BoidMovement>>,
+    window_query: Query<&Window>,
+) {
+    let window = window_query.single();
+    let left_bound: f32 = -(window.width() / 2.);
+    let right_bound: f32 = window.width() / 2.;
+    let bottom_bound: f32 = -(window.height() / 2.);
+    let top_bound: f32 = window.height() / 2.;
+
+    for mut transform in &mut query {
+        let center = transform.translation.xy();
+
+        match center.x {
+            x if x > right_bound => {
+                transform.translation.x = left_bound;
+            }
+            x if x < left_bound => {
+                transform.translation.x = right_bound;
+            }
+            _ => (),
+        }
+
+        match center.y {
+            y if y > top_bound => {
+                transform.translation.y = bottom_bound;
+            }
+            y if y < bottom_bound => {
+                transform.translation.y = top_bound;
+            }
+            _ => (),
         }
     }
 }

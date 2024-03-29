@@ -11,7 +11,7 @@ use core::panic;
 
 /// global properties
 pub const INITIAL_WINDOW_SIZE: Vec2 = Vec2::new(2560_f32, 1800_f32);
-const BOID_COUNT: usize = 22;
+const BOID_COUNT: usize = 64;
 
 /// Walls
 const WALL_ID_OFFSET: usize = BOID_COUNT + 10;
@@ -22,9 +22,6 @@ const RIGHT_WALL_ID: usize = WALL_ID_OFFSET + 4;
 const WALL_THICKNESS: f32 = 10.0;
 const WALL_Z: f32 = 10.0;
 const WALL_COLOR: Color = Color::DARK_GREEN;
-
-/// boid spawn properties
-const BOID_SIZE: Vec2 = Vec2::new(20., 60.);
 
 pub struct StartupPlugin;
 
@@ -39,7 +36,6 @@ fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
-    asset_server: Res<AssetServer>,
 ) {
     commands.spawn(Camera2dBundle::default());
 

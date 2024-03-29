@@ -55,9 +55,9 @@ fn boids_rotation_system(
 fn boids_movement_system(
     mut gizmos: Gizmos,
     time: Res<Time>,
-    mut query: Query<&mut Transform, With<BoidMovement>>,
+    mut query: Query<(&mut Transform, &BoidMovement), With<BoidMovement>>,
 ) {
-    for mut transform in &mut query {
+    for (mut transform, movement) in &mut query {
         // let translation_delta = transform.rotation * Vec3::Y * 30. * time.delta_seconds();
         // transform.translation += translation_delta;
 
@@ -66,7 +66,7 @@ fn boids_movement_system(
         let movement_direction = transform.rotation * Vec3::Y;
         // get the distance the ship will move based on direction, the ship's movement speed and delta
         // time
-        let movement_distance = 30. * time.delta_seconds();
+        let movement_distance = movement.speed * time.delta_seconds();
         // create the change in translation using the new movement direction and distance
         let translation_delta = movement_direction * movement_distance;
         // update the ship translation with our new translation delta
