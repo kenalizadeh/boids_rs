@@ -2,13 +2,12 @@ use bevy::{
     prelude::*,
     window::{close_on_esc, WindowResolution},
 };
-mod components;
 mod plugins;
-use components::*;
 use plugins::{
+    components::Configuration,
     movement::MovementPlugin,
     rules::RulesPlugin,
-    setup::{StartupPlugin, INITIAL_WINDOW_SIZE},
+    startup::{StartupPlugin, INITIAL_WINDOW_SIZE},
 };
 
 fn main() {

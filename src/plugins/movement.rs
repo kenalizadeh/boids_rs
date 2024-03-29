@@ -1,4 +1,4 @@
-use crate::BoidMovement;
+use crate::plugins::components::BoidMovement;
 use bevy::{
     ecs::system::{Query, Res},
     prelude::*,

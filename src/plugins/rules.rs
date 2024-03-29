@@ -1,6 +1,5 @@
+use crate::plugins::components::{AlignmentRule, BoidMovement, CohesionRule, SeparationRule};
 use bevy::{prelude::*, utils::HashMap};
-
-use crate::{AlignmentRule, BoidMovement, CohesionRule, SeparationRule};
 
 pub struct RulesPlugin;
 
@@ -147,17 +146,15 @@ fn cohesion_system(mut query: Query<(&GlobalTransform, &mut CohesionRule)>) {
 
 fn velocity_system(
     mut query: Query<(
-        &Transform,
         &mut BoidMovement,
         &SeparationRule,
         &AlignmentRule,
         &CohesionRule,
     )>,
 ) {
-    for (transform, mut movement, separation, alignment, cohesion) in &mut query {
+    for (mut movement, separation, alignment, cohesion) in &mut query {
         let velocities = [separation.velocity, alignment.velocity, cohesion.velocity];
         let velocity: Vec2 = velocities.iter().map(|v| v.normalize()).sum();
-        let center = transform.translation.xy();
 
         if !velocity.is_nan() {
             movement.target_angle = velocity.to_angle();

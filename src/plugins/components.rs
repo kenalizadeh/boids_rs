@@ -1,27 +1,15 @@
 use bevy::ecs::{component::Component, system::Resource};
 use bevy_math::{primitives::Rectangle, Vec2};
 
-#[derive(Component)]
-pub struct CollisionVolume {
-    pub id: usize,
-    pub shape: Rectangle,
-}
-
-impl CollisionVolume {
-    pub fn new(id: usize, shape: Rectangle) -> Self {
-        Self { id, shape }
-    }
-}
-
 #[derive(Debug)]
-pub struct GridRect {
+pub struct RectFrame {
     pub x: f32,
     pub y: f32,
-    width: f32,
-    height: f32,
+    pub width: f32,
+    pub height: f32,
 }
 
-impl GridRect {
+impl RectFrame {
     pub fn new(x: f32, y: f32, w: f32, h: f32) -> Self {
         Self {
             x,
@@ -29,6 +17,14 @@ impl GridRect {
             width: w,
             height: h,
         }
+    }
+
+    pub fn pos(&self) -> Vec2 {
+        Vec2::new(self.x, self.y)
+    }
+
+    pub fn size(&self) -> Rectangle {
+        Rectangle::new(self.width, self.height)
     }
 }
 
@@ -50,14 +46,11 @@ impl BoidMovement {
 }
 
 #[derive(Component)]
-pub struct Wall {
-    pub rect: Rectangle,
-}
-
-impl Wall {
-    pub fn new(rect: Rectangle) -> Self {
-        Self { rect }
-    }
+pub enum Wall {
+    Top,
+    Right,
+    Bottom,
+    Left,
 }
 
 #[derive(Resource, Default)]

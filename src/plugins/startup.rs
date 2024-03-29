@@ -1,24 +1,16 @@
-use crate::{
-    AlignmentRule, BoidMovement, CohesionRule, CollisionVolume, GridRect, SeparationRule, Wall,
-};
+use super::components::RectFrame;
+use crate::plugins::components::{AlignmentRule, BoidMovement, CohesionRule, SeparationRule, Wall};
 use bevy::{
-    math::primitives::Rectangle,
     prelude::*,
     sprite::{MaterialMesh2dBundle, Mesh2dHandle},
     window::WindowResized,
 };
-use core::panic;
 
-/// global properties
+// global properties
 pub const INITIAL_WINDOW_SIZE: Vec2 = Vec2::new(2560_f32, 1800_f32);
 const BOID_COUNT: usize = 64;
 
-/// Walls
-const WALL_ID_OFFSET: usize = BOID_COUNT + 10;
-const TOP_WALL_ID: usize = WALL_ID_OFFSET + 1;
-const LEFT_WALL_ID: usize = WALL_ID_OFFSET + 2;
-const BOTTOM_WALL_ID: usize = WALL_ID_OFFSET + 3;
-const RIGHT_WALL_ID: usize = WALL_ID_OFFSET + 4;
+// Walls
 const WALL_THICKNESS: f32 = 10.0;
 const WALL_Z: f32 = 10.0;
 const WALL_COLOR: Color = Color::DARK_GREEN;
@@ -40,12 +32,15 @@ fn setup(
     commands.spawn(Camera2dBundle::default());
 
     // WALLS
-    for &(id, (pos, size)) in &[
-        (TOP_WALL_ID, get_top_wall_frame(INITIAL_WINDOW_SIZE)),
-        (LEFT_WALL_ID, get_left_wall_frame(INITIAL_WINDOW_SIZE)),
-        (BOTTOM_WALL_ID, get_bottom_wall_frame(INITIAL_WINDOW_SIZE)),
-        (RIGHT_WALL_ID, get_right_wall_frame(INITIAL_WINDOW_SIZE)),
+    for (wall, frame) in [
+        (Wall::Top, get_top_wall_frame(INITIAL_WINDOW_SIZE)),
+        (Wall::Left, get_left_wall_frame(INITIAL_WINDOW_SIZE)),
+        (Wall::Bottom, get_bottom_wall_frame(INITIAL_WINDOW_SIZE)),
+        (Wall::Right, get_right_wall_frame(INITIAL_WINDOW_SIZE)),
     ] {
+        let pos = frame.pos();
+        let size = frame.size();
+
         commands.spawn((
             MaterialMesh2dBundle {
                 mesh: meshes.add(size).into(),
@@ -53,8 +48,7 @@ fn setup(
                 transform: Transform::from_translation(Vec3::new(pos.x, pos.y, WALL_Z)),
                 ..default()
             },
-            Wall::new(size),
-            CollisionVolume::new(id, size),
+            wall,
         ));
     }
 
@@ -94,19 +88,21 @@ fn make_random_pastel_color() -> Color {
     )
 }
 
+/// get min square number for given boid count
+/// e.g. 25 if boid count is between 16 and 25
 fn grid_row_col(x: u32) -> u32 {
     ((x as f32).sqrt().ceil() as u32).max(2)
 }
 
-fn tile_window(tile_size: u32) -> Vec<GridRect> {
+fn tile_window(tile_size: u32) -> Vec<RectFrame> {
     let tile_size = grid_row_col(tile_size);
     let width: f32 = INITIAL_WINDOW_SIZE.x / tile_size as f32;
     let height: f32 = INITIAL_WINDOW_SIZE.y / tile_size as f32;
 
-    let mut grids: Vec<GridRect> = vec![];
+    let mut grids: Vec<RectFrame> = vec![];
     for r in 0..tile_size {
         for c in 0..tile_size {
-            grids.push(GridRect::new(
+            grids.push(RectFrame::new(
                 r as f32 * width - (INITIAL_WINDOW_SIZE.x) / 2. + width / 2.,
                 c as f32 * height - (INITIAL_WINDOW_SIZE.y) / 2. + height / 2.,
                 width,
@@ -120,60 +116,59 @@ fn tile_window(tile_size: u32) -> Vec<GridRect> {
 
 fn window_walls_resize_system(
     mut meshes: ResMut<Assets<Mesh>>,
-    mut wall_query: Query<(
-        &mut Transform,
-        &mut Mesh2dHandle,
-        &mut Wall,
-        &mut CollisionVolume,
-    )>,
+    mut wall_query: Query<(&mut Transform, &mut Mesh2dHandle, &Wall)>,
     mut resize_reader: EventReader<WindowResized>,
 ) {
     if let Some(window) = resize_reader.read().next() {
         let res = Vec2::new(window.width, window.height);
 
-        for (mut transform, mut mesh, mut wall, mut coll_volume) in &mut wall_query {
-            let (pos, rect) = match coll_volume.id {
-                TOP_WALL_ID => get_top_wall_frame(res),
-                LEFT_WALL_ID => get_left_wall_frame(res),
-                BOTTOM_WALL_ID => get_bottom_wall_frame(res),
-                RIGHT_WALL_ID => get_right_wall_frame(res),
-                _ => panic!("wall not found"),
+        for (mut transform, mut mesh, wall) in &mut wall_query {
+            let frame = match &wall {
+                Wall::Top => get_top_wall_frame(res),
+                Wall::Left => get_left_wall_frame(res),
+                Wall::Bottom => get_bottom_wall_frame(res),
+                Wall::Right => get_right_wall_frame(res),
             };
 
-            *mesh = meshes.add(rect).into();
+            *mesh = meshes.add(frame.size()).into();
+            let pos = frame.pos();
             transform.translation = Vec3::new(pos.x, pos.y, WALL_Z);
-            wall.rect = rect;
-            coll_volume.shape = rect;
         }
     }
 }
 
-type WallFrame = (Vec2, Rectangle);
-
-fn get_top_wall_frame(res: Vec2) -> WallFrame {
-    (
-        Vec2::new(0., res.y / 2.0 - WALL_THICKNESS),
-        Rectangle::new(res.x - WALL_THICKNESS, WALL_THICKNESS),
+fn get_top_wall_frame(res: Vec2) -> RectFrame {
+    RectFrame::new(
+        0.,
+        res.y / 2. - WALL_THICKNESS,
+        res.x - WALL_THICKNESS,
+        WALL_THICKNESS,
     )
 }
 
-fn get_left_wall_frame(res: Vec2) -> WallFrame {
-    (
-        Vec2::new(-res.x / 2. + WALL_THICKNESS, 0.),
-        Rectangle::new(WALL_THICKNESS, res.y - WALL_THICKNESS),
+fn get_left_wall_frame(res: Vec2) -> RectFrame {
+    RectFrame::new(
+        -res.x / 2. + WALL_THICKNESS,
+        0.,
+        WALL_THICKNESS,
+        res.y - WALL_THICKNESS,
     )
 }
 
-fn get_bottom_wall_frame(res: Vec2) -> WallFrame {
-    (
-        Vec2::new(0., -res.y / 2.0 + WALL_THICKNESS),
-        Rectangle::new(res.x - WALL_THICKNESS, WALL_THICKNESS),
+fn get_bottom_wall_frame(res: Vec2) -> RectFrame {
+    RectFrame::new(
+        0.,
+        -res.y / 2.0 + WALL_THICKNESS,
+        res.x - WALL_THICKNESS,
+        WALL_THICKNESS,
     )
 }
 
-fn get_right_wall_frame(res: Vec2) -> WallFrame {
-    (
-        Vec2::new(res.x / 2. - WALL_THICKNESS, 0.),
-        Rectangle::new(WALL_THICKNESS, res.y - WALL_THICKNESS),
+fn get_right_wall_frame(res: Vec2) -> RectFrame {
+    RectFrame::new(
+        res.x / 2. - WALL_THICKNESS,
+        0.,
+        WALL_THICKNESS,
+        res.y - WALL_THICKNESS,
     )
 }
