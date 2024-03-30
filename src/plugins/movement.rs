@@ -38,6 +38,8 @@ impl BoidMovement {
     }
 }
 
+// 2D Rotation Example helped a lot with this.
+// https://bevyengine.org/examples/2D%20Rendering/rotation/
 fn boids_rotation_system(time: Res<Time>, mut query: Query<(&mut Transform, &BoidMovement)>) {
     for (mut transform, movement) in &mut query {
         let curr_vel = (transform.rotation * Vec3::Y).xy();
