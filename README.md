@@ -57,5 +57,18 @@ Moving to migrating the rules systems implemented in demo project, and removing 
 
 ### Fri 29 March
 Had to refactor almost every aspect of the simulation. But finally got the rules to work and code to make sense.
+Also had to sacrifice my precious 2D triangular bird sprite in favor of equilateral triangles with different pastel colors.
 Decided to ditch the clear path finding with Raycasting for now, and just teleport the boids to the opposite side of the wall if they move outside the window.
 Boids are finally boiding. There are a lot of room for improvement though, obviously.
+
+</br>
+
+# Journey Summary
+The original Boids by Craig Reynolds is a simple but fascinating system.
+I learned interesting maths, specifically linear algebra concepts for vector operations, game development philosophy and methods.
+Bevy Engine might be in it's early stages.
+This was my first ever proper experience with a game engine and I really enjoyed Bevy the entire duration of using it.
+It's Entity Component System is really intuitive to work with.
+And being able to `gd` into engine code was really helpful. And to my knowledge it's something most game engines cannot offer.
+I can confidently use Bevy again in future projects.
+In conclusion, this was a refreshing, pleasant and enlightening experience.
