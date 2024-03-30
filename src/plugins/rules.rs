@@ -24,7 +24,7 @@ fn separation_system(mut query: Query<(&GlobalTransform, &mut SeparationRule)>) 
     let mut velocities: [Option<Vec2>; BOID_COUNT] = [Option::None; BOID_COUNT];
     for (current_transform, current_separation) in &query {
         let current_center = current_transform.translation().xy();
-        let mut nearby_boid_count = 0_f32;
+        let mut nearby_boid_count = 0_u8;
         let mut velocity = Vec2::ZERO;
         // max magnitude
         const MAGNITUDE: f32 = 60.;
@@ -46,11 +46,11 @@ fn separation_system(mut query: Query<(&GlobalTransform, &mut SeparationRule)>) 
             let weighted_velocity = separation_velocity.normalize() * MAGNITUDE * weight;
 
             velocity += weighted_velocity;
-            nearby_boid_count += 1.;
+            nearby_boid_count += 1;
         }
 
-        if nearby_boid_count > 0. {
-            velocity /= nearby_boid_count;
+        if nearby_boid_count > 0 {
+            velocity /= nearby_boid_count as f32;
             velocity *= current_separation.factor;
 
             velocities[current_separation.id] = Some(velocity);
@@ -68,7 +68,7 @@ fn alignment_system(mut query: Query<(&Transform, &mut AlignmentRule)>) {
     let mut velocities: [Option<Vec2>; BOID_COUNT] = [Option::None; BOID_COUNT];
     for (current_transform, current_alignment) in &query {
         let current_center = current_transform.translation.xy();
-        let mut nearby_boid_count = 0_f32;
+        let mut nearby_boid_count = 0_u8;
         let mut velocity = Vec2::ZERO;
 
         for (transform, alignment) in &query {
@@ -85,11 +85,11 @@ fn alignment_system(mut query: Query<(&Transform, &mut AlignmentRule)>) {
             let boid_velocity = (transform.rotation * Vec3::Y).xy();
 
             velocity += boid_velocity;
-            nearby_boid_count += 1.;
+            nearby_boid_count += 1;
         }
 
-        if nearby_boid_count > 0. {
-            velocity /= nearby_boid_count;
+        if nearby_boid_count > 0 {
+            velocity /= nearby_boid_count as f32;
             velocity *= current_alignment.factor;
 
             velocities[current_alignment.id] = Some(velocity);
@@ -107,7 +107,7 @@ fn cohesion_system(mut query: Query<(&GlobalTransform, &mut CohesionRule)>) {
     let mut velocities: [Option<Vec2>; BOID_COUNT] = [Option::None; BOID_COUNT];
     for (current_transform, current_cohesion) in &query {
         let current_center = current_transform.translation().xy();
-        let mut nearby_boid_count = 0_f32;
+        let mut nearby_boid_count = 0_u8;
         let mut center_of_mass = current_center;
         let mut boid_positions: Vec<Vec2> = vec![];
 
@@ -123,14 +123,14 @@ fn cohesion_system(mut query: Query<(&GlobalTransform, &mut CohesionRule)>) {
             }
 
             center_of_mass += center;
-            nearby_boid_count += 1.;
+            nearby_boid_count += 1;
 
             boid_positions.push(center);
         }
 
-        if nearby_boid_count > 0. {
+        if nearby_boid_count > 0 {
             center_of_mass -= current_center;
-            center_of_mass /= nearby_boid_count;
+            center_of_mass /= nearby_boid_count as f32;
 
             let com_vector = center_of_mass - current_center;
             let com_velocity = com_vector.normalize() * current_cohesion.factor;
