@@ -1,5 +1,7 @@
 use crate::plugins::components::{AlignmentRule, BoidMovement, CohesionRule, SeparationRule};
-use bevy::{prelude::*, utils::HashMap};
+use bevy::prelude::*;
+
+use super::startup::BOID_COUNT;
 
 pub struct RulesPlugin;
 
@@ -19,7 +21,7 @@ impl Plugin for RulesPlugin {
 }
 
 fn separation_system(mut query: Query<(&GlobalTransform, &mut SeparationRule)>) {
-    let mut velocity_map: HashMap<usize, Vec2> = HashMap::new();
+    let mut velocities: [Option<Vec2>; BOID_COUNT] = [Option::None; BOID_COUNT];
     for (current_transform, current_separation) in &query {
         let current_center = current_transform.translation().xy();
         let mut nearby_boid_count = 0_f32;
@@ -51,19 +53,19 @@ fn separation_system(mut query: Query<(&GlobalTransform, &mut SeparationRule)>) 
             velocity /= nearby_boid_count;
             velocity *= current_separation.factor;
 
-            velocity_map.insert(current_separation.id, velocity);
+            velocities[current_separation.id] = Some(velocity);
         }
     }
 
     for (_, mut separation) in &mut query {
-        if let Some(vel) = velocity_map.get(&separation.id) {
-            separation.velocity = *vel;
+        if let Some(vel) = velocities[separation.id] {
+            separation.velocity = vel;
         }
     }
 }
 
 fn alignment_system(mut query: Query<(&Transform, &mut AlignmentRule)>) {
-    let mut velocity_map: HashMap<usize, Vec2> = HashMap::new();
+    let mut velocities: [Option<Vec2>; BOID_COUNT] = [Option::None; BOID_COUNT];
     for (current_transform, current_alignment) in &query {
         let current_center = current_transform.translation.xy();
         let mut nearby_boid_count = 0_f32;
@@ -90,19 +92,19 @@ fn alignment_system(mut query: Query<(&Transform, &mut AlignmentRule)>) {
             velocity /= nearby_boid_count;
             velocity *= current_alignment.factor;
 
-            velocity_map.insert(current_alignment.id, velocity);
+            velocities[current_alignment.id] = Some(velocity);
         }
     }
 
     for (_, mut alignment) in &mut query {
-        if let Some(vel) = velocity_map.get(&alignment.id) {
-            alignment.velocity = *vel;
+        if let Some(vel) = velocities[alignment.id] {
+            alignment.velocity = vel;
         }
     }
 }
 
 fn cohesion_system(mut query: Query<(&GlobalTransform, &mut CohesionRule)>) {
-    let mut velocity_map: HashMap<usize, Vec2> = HashMap::new();
+    let mut velocities: [Option<Vec2>; BOID_COUNT] = [Option::None; BOID_COUNT];
     for (current_transform, current_cohesion) in &query {
         let current_center = current_transform.translation().xy();
         let mut nearby_boid_count = 0_f32;
@@ -133,13 +135,13 @@ fn cohesion_system(mut query: Query<(&GlobalTransform, &mut CohesionRule)>) {
             let com_vector = center_of_mass - current_center;
             let com_velocity = com_vector.normalize() * current_cohesion.factor;
 
-            velocity_map.insert(current_cohesion.id, com_velocity);
+            velocities[current_cohesion.id] = Some(com_velocity);
         }
     }
 
-    for (_, mut alignment) in &mut query {
-        if let Some(vel) = velocity_map.get(&alignment.id) {
-            alignment.velocity = *vel;
+    for (_, mut cohesion) in &mut query {
+        if let Some(vel) = velocities[cohesion.id] {
+            cohesion.velocity = vel;
         }
     }
 }

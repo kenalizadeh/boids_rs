@@ -8,7 +8,7 @@ use bevy::{
 
 // global properties
 pub const INITIAL_WINDOW_SIZE: Vec2 = Vec2::new(2560_f32, 1800_f32);
-const BOID_COUNT: usize = 64;
+pub const BOID_COUNT: usize = 128;
 
 // Walls
 const WALL_THICKNESS: f32 = 10.0;
@@ -138,37 +138,17 @@ fn window_walls_resize_system(
 }
 
 fn get_top_wall_frame(res: Vec2) -> RectFrame {
-    RectFrame::new(
-        0.,
-        res.y / 2. - WALL_THICKNESS,
-        res.x - WALL_THICKNESS,
-        WALL_THICKNESS,
-    )
+    RectFrame::new(0., (res.y - WALL_THICKNESS) / 2., res.x, WALL_THICKNESS)
 }
 
 fn get_left_wall_frame(res: Vec2) -> RectFrame {
-    RectFrame::new(
-        -res.x / 2. + WALL_THICKNESS,
-        0.,
-        WALL_THICKNESS,
-        res.y - WALL_THICKNESS,
-    )
+    RectFrame::new((-res.x + WALL_THICKNESS) / 2., 0., WALL_THICKNESS, res.y)
 }
 
 fn get_bottom_wall_frame(res: Vec2) -> RectFrame {
-    RectFrame::new(
-        0.,
-        -res.y / 2.0 + WALL_THICKNESS,
-        res.x - WALL_THICKNESS,
-        WALL_THICKNESS,
-    )
+    RectFrame::new(0., (-res.y + WALL_THICKNESS) / 2., res.x, WALL_THICKNESS)
 }
 
 fn get_right_wall_frame(res: Vec2) -> RectFrame {
-    RectFrame::new(
-        res.x / 2. - WALL_THICKNESS,
-        0.,
-        WALL_THICKNESS,
-        res.y - WALL_THICKNESS,
-    )
+    RectFrame::new((res.x - WALL_THICKNESS) / 2., 0., WALL_THICKNESS, res.y)
 }
