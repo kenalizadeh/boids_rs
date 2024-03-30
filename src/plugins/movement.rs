@@ -1,4 +1,3 @@
-use crate::plugins::components::BoidMovement;
 use bevy::{
     ecs::system::{Query, Res},
     prelude::*,
@@ -19,6 +18,23 @@ impl Plugin for MovementPlugin {
             )
                 .chain(),
         );
+    }
+}
+
+#[derive(Component, Default)]
+pub struct BoidMovement {
+    pub speed: f32,
+    pub target_angle: f32,
+    pub rotation_speed: f32,
+}
+
+impl BoidMovement {
+    pub fn new(speed: f32, target_angle: f32, rotation_speed: f32) -> Self {
+        Self {
+            speed,
+            target_angle,
+            rotation_speed,
+        }
     }
 }
 

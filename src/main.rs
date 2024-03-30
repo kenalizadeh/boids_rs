@@ -4,7 +4,6 @@ use bevy::{
 };
 mod plugins;
 use plugins::{
-    components::Configuration,
     movement::MovementPlugin,
     rules::RulesPlugin,
     startup::{StartupPlugin, INITIAL_WINDOW_SIZE},
@@ -13,7 +12,6 @@ use plugins::{
 fn main() {
     App::new()
         .insert_resource(Time::<Fixed>::from_hz(60.))
-        .insert_resource(Configuration::default())
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 resolution: WindowResolution::new(INITIAL_WINDOW_SIZE.x, INITIAL_WINDOW_SIZE.y),

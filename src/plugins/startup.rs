@@ -1,9 +1,12 @@
-use super::components::RectFrame;
-use crate::plugins::components::{AlignmentRule, BoidMovement, CohesionRule, SeparationRule, Wall};
 use bevy::{
     prelude::*,
     sprite::{MaterialMesh2dBundle, Mesh2dHandle},
     window::WindowResized,
+};
+
+use crate::plugins::{
+    movement::BoidMovement,
+    rules::{AlignmentRule, CohesionRule, SeparationRule},
 };
 
 // global properties
@@ -22,6 +25,41 @@ impl Plugin for StartupPlugin {
         app.add_systems(Startup, setup);
         app.add_systems(Update, window_walls_resize_system);
     }
+}
+
+#[derive(Debug)]
+pub struct RectFrame {
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+}
+
+impl RectFrame {
+    pub fn new(x: f32, y: f32, w: f32, h: f32) -> Self {
+        Self {
+            x,
+            y,
+            width: w,
+            height: h,
+        }
+    }
+
+    pub fn pos(&self) -> Vec2 {
+        Vec2::new(self.x, self.y)
+    }
+
+    pub fn size(&self) -> Rectangle {
+        Rectangle::new(self.width, self.height)
+    }
+}
+
+#[derive(Component)]
+pub enum Wall {
+    Top,
+    Right,
+    Bottom,
+    Left,
 }
 
 fn setup(

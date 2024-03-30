@@ -1,7 +1,6 @@
-use crate::plugins::components::{AlignmentRule, BoidMovement, CohesionRule, SeparationRule};
 use bevy::prelude::*;
 
-use super::startup::BOID_COUNT;
+use super::{movement::BoidMovement, startup::BOID_COUNT};
 
 pub struct RulesPlugin;
 
@@ -17,6 +16,69 @@ impl Plugin for RulesPlugin {
             )
                 .chain(),
         );
+    }
+}
+
+#[derive(Component)]
+pub struct SeparationRule {
+    pub id: usize,
+    pub radius: f32,
+    // between 0.0 and 1.0
+    // 0 means off
+    pub factor: f32,
+    pub velocity: Vec2,
+}
+
+impl SeparationRule {
+    pub fn new(id: usize, radius: f32, factor: f32, velocity: Vec2) -> Self {
+        Self {
+            id,
+            radius,
+            factor,
+            velocity,
+        }
+    }
+}
+
+#[derive(Component)]
+pub struct AlignmentRule {
+    pub id: usize,
+    pub radius: f32,
+    // between 0.0 and 1.0
+    // 0 means off
+    pub factor: f32,
+    pub velocity: Vec2,
+}
+
+impl AlignmentRule {
+    pub fn new(id: usize, radius: f32, factor: f32, velocity: Vec2) -> Self {
+        Self {
+            id,
+            radius,
+            factor,
+            velocity,
+        }
+    }
+}
+
+#[derive(Component)]
+pub struct CohesionRule {
+    pub id: usize,
+    pub radius: f32,
+    // between 0.0 and 1.0
+    // 0 means off
+    pub factor: f32,
+    pub velocity: Vec2,
+}
+
+impl CohesionRule {
+    pub fn new(id: usize, radius: f32, factor: f32, velocity: Vec2) -> Self {
+        Self {
+            id,
+            radius,
+            factor,
+            velocity,
+        }
     }
 }
 
