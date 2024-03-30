@@ -5,18 +5,19 @@
 
 ## The Journey
 It all started when I stumbled upon Sebastian Lague's [Video on boids](https://www.youtube.com/watch?v=bqtqltqcQhw) after watching a couple indie game content on YouTube.
-Then I watched it about 20 more times. I was fascinated by the concept.
-Because Sebastian Lague's really entertaining and digestable way of explaining complex concepts I foolishly felt confident that I have the skills required to understand and implement boids flocking simulation.
-And since at this point I was pretty much obsessed with Boids, I just had to make a 2D Boids simulation.
-I am just a self-taught iOS Developer, with practically no mathematics (or general CS) background. I had no idea what was ahead.
-And of course I ended up in a rabbit hole of countless videos on graphics programming, game development, trigonometry, linear algebra, alongside wiki pages, articles, forums etc. 
-At first I tried some popular game engines (that also wouldn't set my old macbook on fire)
-I Tried Godot a bit, and it worked surprisingly fine. But around that time I discovered [Bevy Engine](https://bevyengine.org).
-Since I had recently started learning Rust, and was really into it, I decided to give Bevy a try.
-I really liked the way Bevy works, it's Entity Component System was more intuitive for me than Godot's main loop, and I felt more comfortable with Rust than the Godot options (GDScript, C#, C or C++).
+His entertaining and digestable way of explaining complex concepts inspired me to implement the simulation myself.
+At first I tried some popular game engines like Godot, Game Maker Studio, Solar2D. 
+But around that time I also came across [Bevy Engine](https://bevyengine.org), and decided to give Bevy a try.
+I really liked the way Bevy works, it's Entity Component System was more intuitive for me than traditional main loop, and I felt more comfortable with Rust than the other options (GDScript, Lua, C#, C or C++).
 So I just created a new project and started working.
 
 ### And it was **great** fun.
+
+</br>
+
+## Demo
+
+![boids](https://github.com/kenalizadeh/boids_rs/assets/4370392/d4ab255b-4e0f-4d61-8dae-8a07c5ca6fc2)
 
 </br>
 
