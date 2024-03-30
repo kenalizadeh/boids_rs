@@ -45,7 +45,7 @@ Created a separate project to experiment with movement system. Inspired by [Game
 
 ### 24 March
 Until this point I tried to figure the rule implementations myself, hence the whole Raycasting, local flock's mean angle calculation. Which was lots of fun, since I had no deadlines. It meant 
-Then I watched [This Suboptimal Engineer Video](https://www.youtube.com/watch?v=HzR-9tfOJQo) on boids simulation. Tried not to cheat and copy everything so didn't watch a lot. The intro explained how we just have to calculate separate velocities for the rules (separation, alignment, cohesion) and `combine` them together to end up with a final velocity for each boid.
+Then I watched [This Suboptimal Engineer Video](https://www.youtube.com/watch?v=HzR-9tfOJQo) on boids simulation. Tried not to cheat and copy everything so didn't watch a lot. The intro explained how we just have to calculate separate velocities for the rules (separation, alignment, cohesion) and "combine" them to end up with a final velocity for each boid.
 So now going with that. To be continued...
 
 ### Tue 26 March
