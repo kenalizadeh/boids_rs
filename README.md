@@ -4,12 +4,11 @@
 </br>
 
 ## The Journey
-It all started when I stumbled upon Sebastian Lague's [Video on boids](https://www.youtube.com/watch?v=bqtqltqcQhw) after watching a couple indie game content on YouTube.
+I stumbled upon Sebastian Lague's [Video on boids](https://www.youtube.com/watch?v=bqtqltqcQhw) after watching a some indie game content on YouTube.
 His entertaining and digestable way of explaining complex concepts inspired me to implement the simulation myself.
 At first I tried some popular game engines like Godot, Game Maker Studio, Solar2D. 
 But around that time I also came across [Bevy Engine](https://bevyengine.org), and decided to give Bevy a try.
-I really liked the way Bevy works, it's Entity Component System was more intuitive for me than traditional main loop, and I felt more comfortable with Rust than the other options (GDScript, Lua, C#, C or C++).
-So I just created a new project and started working.
+I really liked the way Bevy works, so I just created a new project and started working.
 
 ### And it was **great** fun.
 
@@ -45,12 +44,12 @@ Created a separate project to experiment with movement system. Inspired by [Game
 
 ### 24 March
 Until this point I tried to figure the rule implementations myself, hence the whole Raycasting, local flock's mean angle calculation. Which was lots of fun, since I had no deadlines. It meant 
-Then I watched [This Suboptimal Engineer Video](https://www.youtube.com/watch?v=HzR-9tfOJQo) on boids simulation. Tried not to cheat and copy everything so didn't watch a lot. The intro explained how we just have to calculate separate velocities for the rules (separation, alignment, cohesion) and "combine" them to end up with a final velocity for each boid.
+Then I watched this [Suboptimal Engineer Video](https://www.youtube.com/watch?v=HzR-9tfOJQo) on boids simulation. Tried not to cheat and copy everything so didn't watch a lot. The intro explained how we just have to calculate separate velocities for the rules (separation, alignment, cohesion) and "combine" them to end up with a final velocity for each boid.
 So now going with that. To be continued...
 
 ### Tue 26 March
-After realizing I'm out of my depth, I watched the [previously mentioned video](https://www.youtube.com/watch?v=HzR-9tfOJQo) again, and decided to study the given code examples and try them out.
-Turns out I was doing almost everything wrong. Which I didn't mind actually, since I also learned a lot that way. 
+After realizing I'm out of my depth, I watched the previously mentioned [video by Suboptimal Engineer](https://www.youtube.com/watch?v=HzR-9tfOJQo) again, and decided to study the given code examples and try them out.
+Turns out I was doing almost everything wrong. Which I didn't mind actually, since I also learned a lot that way.
 Messed up the project trying to implement the three rules.
 Created a demo project to visualize the separation, alignment and cohesion rules' effects separately and combined together (Inspired by previously mentioned [Game Endeavor Video](https://www.youtube.com/watch?v=6BrZryMz-ac)). This was a good idea. All seems to be working.
 Moving to migrating the rules systems implemented in demo project, and removing clear path finding with Raycasting.
