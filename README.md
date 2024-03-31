@@ -14,7 +14,7 @@ I really liked the way Bevy works, so I just created a new project and started w
 
 </br>
 
-## Demo
+## Demo / [Live Demo](https://kenalizadeh.github.io/boids_rs/)
 
 ![boids](https://github.com/kenalizadeh/boids_rs/assets/4370392/d4ab255b-4e0f-4d61-8dae-8a07c5ca6fc2)
 
