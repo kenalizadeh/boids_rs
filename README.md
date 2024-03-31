@@ -4,7 +4,7 @@
 </br>
 
 ## The Journey
-It all started when I stumbled upon Sebastian Lague's [Video on boids](https://www.youtube.com/watch?v=bqtqltqcQhw) after watching a couple indie game content on YouTube.
+I stumbled upon Sebastian Lague's [Video on boids](https://www.youtube.com/watch?v=bqtqltqcQhw) after watching a some indie game content on YouTube.
 His entertaining and digestable way of explaining complex concepts inspired me to implement the simulation myself.
 At first I tried some popular game engines like Godot, Game Maker Studio, Solar2D. 
 But around that time I also came across [Bevy Engine](https://bevyengine.org), and decided to give Bevy a try.
