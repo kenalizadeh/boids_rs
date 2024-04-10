@@ -2,12 +2,8 @@ use bevy::{
     prelude::*,
     window::{close_on_esc, WindowResolution},
 };
-mod plugins;
-use plugins::{
-    movement::MovementPlugin,
-    rules::RulesPlugin,
-    startup::{StartupPlugin, INITIAL_WINDOW_SIZE},
-};
+
+use boids_rs::{MovementPlugin, RulesPlugin, StartupPlugin, INITIAL_WINDOW_SIZE};
 
 fn main() {
     App::new()
