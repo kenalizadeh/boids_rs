@@ -221,7 +221,8 @@ fn state_text_system(
     let text = &mut text.sections[0].value;
     text.clear();
 
-    text.push_str("Press (G) to add a boid\nPress (C) to clear");
+    text.push_str("Press (G) to add a boid\n");
+    text.push_str("Press (C) to clear\n");
     text.push_str("Rules:\n");
     for &st in &[
         RuleState::Separation,
@@ -332,7 +333,10 @@ fn alignment_system(
         gizmos.arrow_2d(center, center + forward_velocity, Color::LIME_GREEN);
         gizmos.line_2d(target_center, center, Color::DARK_GREEN);
 
-        velocity += forward_velocity;
+        let weight = (alignment.radius - distance) / alignment.radius;
+        let weighted_velocity = forward_velocity.normalize() * weight;
+
+        velocity += weighted_velocity;
         nearby_boid_count += 1.;
     }
 
