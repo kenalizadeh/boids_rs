@@ -58,6 +58,12 @@ const TARGET_BOID_ID: usize = 0;
 #[derive(Component)]
 struct NearbyBoid;
 
+#[derive(Component)]
+struct ControlsText;
+
+#[derive(Component)]
+struct VelocityDebugText;
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
@@ -74,6 +80,7 @@ fn main() {
                 cursor_gizmo_system,
                 radius_gizmo_system,
                 state_text_system,
+                velocity_debug_text_system,
                 clear_objects_system,
                 object_spawn_system,
                 separation_system.run_if(separation_enabled),
@@ -93,7 +100,7 @@ fn setup(
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     commands.spawn(Camera2dBundle::default());
-    commands.spawn(
+    commands.spawn((
         TextBundle::from_section(
             "",
             TextStyle {
@@ -107,7 +114,25 @@ fn setup(
             left: Val::Px(10.0),
             ..default()
         }),
-    );
+        ControlsText,
+    ));
+
+    commands.spawn((
+        TextBundle::from_section(
+            "",
+            TextStyle {
+                font_size: 26.0,
+                ..default()
+            },
+        )
+        .with_style(Style {
+            position_type: PositionType::Absolute,
+            top: Val::Px(10.0),
+            left: Val::Px(10.0),
+            ..default()
+        }),
+        VelocityDebugText,
+    ));
 
     commands.spawn((
         MaterialMesh2dBundle {
@@ -184,7 +209,10 @@ fn object_spawn_system(
     }
 }
 
-fn state_text_system(mut query: Query<&mut Text>, state: Res<State<RuleState>>) {
+fn state_text_system(
+    mut query: Query<&mut Text, With<ControlsText>>,
+    state: Res<State<RuleState>>,
+) {
     if state.is_changed() {
         return;
     }
@@ -207,6 +235,20 @@ fn state_text_system(mut query: Query<&mut Text>, state: Res<State<RuleState>>) 
     text.push_str("\npress Space to cycle");
 }
 
+fn velocity_debug_text_system(
+    mut query: Query<&mut Text, With<VelocityDebugText>>,
+    target: Query<(&mut SeparationRule, &mut AlignmentRule, &mut CohesionRule)>,
+) {
+    let (separation, alignment, cohesion) = target.single();
+    let mut text = query.single_mut();
+    let text = &mut text.sections[0].value;
+
+    text.clear();
+    text.push_str(&format!("Separation V: {}\n", separation.velocity));
+    text.push_str(&format!("Alignment V: {}\n", alignment.velocity));
+    text.push_str(&format!("Cohesion V: {}\n", cohesion.velocity));
+}
+
 fn state_change_system(
     key_input: Res<ButtonInput<KeyCode>>,
     current_state: Res<State<RuleState>>,
@@ -224,43 +266,35 @@ fn state_change_system(
     }
 }
 
-fn forward_vector(transform: &Transform) -> Vec2 {
-    (transform.rotation * Vec3::Y).xy()
-}
-
 fn separation_system(
     mut gizmos: Gizmos,
     mut target: Query<(&GlobalTransform, &mut SeparationRule)>,
-    query: Query<&Transform, With<NearbyBoid>>,
+    query: Query<(&Transform, &BoidMovement), With<NearbyBoid>>,
 ) {
     let (target, mut separation) = target.single_mut();
     let target_center = target.translation().xy();
 
     let mut nearby_boid_count = 0_f32;
     let mut velocity = Vec2::ZERO;
-    // max magnitude
-    const MAGNITUDE: f32 = 60.;
 
-    for transform in &query {
+    for (transform, movement) in &query {
         let center = transform.translation.xy();
         let distance = target_center.distance(center);
         if distance > separation.radius {
             continue;
         }
 
-        gizmos.arrow_2d(
-            center,
-            center + forward_vector(transform) * 30.,
-            Color::LIME_GREEN,
-        );
+        let forward_velocity = Vec2::from_angle(movement.target_angle) * movement.speed;
+        gizmos.arrow_2d(center, center + forward_velocity, Color::LIME_GREEN);
         gizmos.line_2d(target_center, center, Color::DARK_GREEN);
 
         // adding vectors gives us the attraction velocity, subtracting does the opposite.
         let separation_velocity = target_center - center;
         let weight = (separation.radius - distance) / separation.radius;
-        let weighted_velocity = separation_velocity.normalize() * MAGNITUDE * weight;
+        let weighted_velocity = separation_velocity.normalize() * weight;
+        let final_velocity = weighted_velocity * movement.speed;
 
-        velocity += weighted_velocity;
+        velocity += final_velocity;
         nearby_boid_count += 1.;
     }
 
@@ -294,11 +328,11 @@ fn alignment_system(
             continue;
         }
 
-        let forward_velocity = forward_vector(transform) * movement.speed;
+        let forward_velocity = Vec2::from_angle(movement.target_angle) * movement.speed;
         gizmos.arrow_2d(center, center + forward_velocity, Color::LIME_GREEN);
         gizmos.line_2d(target_center, center, Color::DARK_GREEN);
 
-        velocity += velocity;
+        velocity += forward_velocity;
         nearby_boid_count += 1.;
     }
 
@@ -321,7 +355,7 @@ fn alignment_system(
 fn cohesion_system(
     mut gizmos: Gizmos,
     mut target: Query<(&GlobalTransform, &mut CohesionRule)>,
-    query: Query<&Transform, With<NearbyBoid>>,
+    query: Query<(&Transform, &BoidMovement), With<NearbyBoid>>,
 ) {
     let (target, mut cohesion) = target.single_mut();
     let target_center = target.translation().xy();
@@ -330,18 +364,15 @@ fn cohesion_system(
     let mut center_of_mass = target_center;
     let mut boid_positions: Vec<Vec2> = vec![];
 
-    for transform in &query {
+    for (transform, movement) in &query {
         let center = transform.translation.xy();
         let distance = target_center.distance(center);
         if distance > cohesion.radius {
             continue;
         }
 
-        gizmos.arrow_2d(
-            center,
-            center + forward_vector(transform) * 30.,
-            Color::LIME_GREEN,
-        );
+        let forward_velocity = Vec2::from_angle(movement.target_angle) * movement.speed;
+        gizmos.arrow_2d(center, center + forward_velocity, Color::LIME_GREEN);
 
         center_of_mass += center;
         nearby_boid_count += 1.;
