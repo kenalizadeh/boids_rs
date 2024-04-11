@@ -20,7 +20,7 @@ use bevy::{
     DefaultPlugins,
 };
 
-use boids_rs::{AlignmentRule, BoidMovement, CohesionRule, SeparationRule};
+use boids_rs::{AlignmentRule, BoidMovement, CohesionRule, RulesPlugin, SeparationRule};
 
 #[derive(States, Default, Clone, Copy, Eq, PartialEq, Hash, Debug)]
 pub enum RuleState {
@@ -67,6 +67,7 @@ struct VelocityDebugText;
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
+        .add_plugins(RulesPlugin)
         .add_systems(Startup, setup)
         .insert_resource(Cursor {
             pos: Vec2::new(0., 0.),
@@ -169,7 +170,10 @@ fn cursor_gizmo_system(mut gizmos: Gizmos, cursor: Res<Cursor>) {
     gizmos.circle_2d(cursor.pos, 5., Color::ANTIQUE_WHITE);
 }
 
-fn radius_gizmo_system(mut gizmos: Gizmos, query: Query<(&GlobalTransform, &SeparationRule)>) {
+fn radius_gizmo_system(
+    mut gizmos: Gizmos,
+    query: Query<(&GlobalTransform, &SeparationRule), Without<NearbyBoid>>,
+) {
     let (transform, separation) = query.single();
     let target_center = transform.translation().xy();
 
@@ -196,14 +200,19 @@ fn object_spawn_system(
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     if key_input.just_pressed(KeyCode::KeyG) {
+        let direction_degrees = (fastrand::f32() * 360.0).to_radians();
         commands.spawn((
             MaterialMesh2dBundle {
                 mesh: meshes.add(Circle::new(5.)).into(),
                 material: materials.add(ColorMaterial::from(Color::SEA_GREEN)),
-                transform: Transform::from_translation(Vec3::new(cursor.pos.x, cursor.pos.y, 0.)),
+                transform: Transform::from_translation(Vec3::new(cursor.pos.x, cursor.pos.y, 0.))
+                    .with_rotation(Quat::from_rotation_z(direction_degrees)),
                 ..default()
             },
-            BoidMovement::new(90., fastrand::f32() * 360., std::f32::consts::PI),
+            SeparationRule::new(1, RULES_RADIUS, 1., Vec2::ZERO),
+            AlignmentRule::new(1, RULES_RADIUS, 1., Vec2::ZERO),
+            CohesionRule::new(1, RULES_RADIUS, 1., Vec2::ZERO),
+            BoidMovement::new(90., direction_degrees, std::f32::consts::PI),
             NearbyBoid,
         ));
     }
@@ -238,7 +247,10 @@ fn state_text_system(
 
 fn velocity_debug_text_system(
     mut query: Query<&mut Text, With<VelocityDebugText>>,
-    target: Query<(&mut SeparationRule, &mut AlignmentRule, &mut CohesionRule)>,
+    target: Query<
+        (&mut SeparationRule, &mut AlignmentRule, &mut CohesionRule),
+        Without<NearbyBoid>,
+    >,
 ) {
     let (separation, alignment, cohesion) = target.single();
     let mut text = query.single_mut();
@@ -269,139 +281,72 @@ fn state_change_system(
 
 fn separation_system(
     mut gizmos: Gizmos,
-    mut target: Query<(&GlobalTransform, &mut SeparationRule)>,
+    target: Query<(&GlobalTransform, &SeparationRule), Without<NearbyBoid>>,
     query: Query<(&Transform, &BoidMovement), With<NearbyBoid>>,
 ) {
-    let (target, mut separation) = target.single_mut();
+    let (target, separation) = target.single();
     let target_center = target.translation().xy();
-
-    let mut nearby_boid_count = 0_f32;
-    let mut velocity = Vec2::ZERO;
 
     for (transform, movement) in &query {
         let center = transform.translation.xy();
-        let distance = target_center.distance(center);
-        if distance > separation.radius {
-            continue;
-        }
-
-        let forward_velocity = Vec2::from_angle(movement.target_angle) * movement.speed;
-        gizmos.arrow_2d(center, center + forward_velocity, Color::LIME_GREEN);
+        gizmos.arrow_2d(
+            center,
+            center + Vec2::from_angle(movement.target_angle) * movement.speed,
+            Color::LIME_GREEN,
+        );
         gizmos.line_2d(target_center, center, Color::DARK_GREEN);
-
-        // adding vectors gives us the attraction velocity, subtracting does the opposite.
-        let separation_velocity = target_center - center;
-        let weight = (separation.radius - distance) / separation.radius;
-        let weighted_velocity = separation_velocity.normalize() * weight;
-        let final_velocity = weighted_velocity * movement.speed;
-
-        velocity += final_velocity;
-        nearby_boid_count += 1.;
     }
 
-    if nearby_boid_count > 0. {
-        velocity /= nearby_boid_count;
-        velocity *= separation.factor;
-
-        separation.velocity = velocity;
-
-        gizmos.arrow_2d(target_center, target_center + velocity, Color::BLUE);
-    } else {
-        separation.velocity = Vec2::ZERO;
-    }
+    gizmos.arrow_2d(
+        target_center,
+        target_center + separation.velocity,
+        Color::BLUE,
+    );
 }
 
 fn alignment_system(
     mut gizmos: Gizmos,
-    mut target: Query<(&GlobalTransform, &mut AlignmentRule)>,
+    target: Query<(&GlobalTransform, &AlignmentRule), Without<NearbyBoid>>,
     query: Query<(&Transform, &BoidMovement), With<NearbyBoid>>,
 ) {
-    let (target, mut alignment) = target.single_mut();
+    let (target, alignment) = target.single();
     let target_center = target.translation().xy();
-
-    let mut nearby_boid_count = 0_f32;
-    let mut velocity = Vec2::ZERO;
 
     for (transform, movement) in &query {
         let center = transform.translation.xy();
-        let distance = target_center.distance(center);
-        if distance > alignment.radius {
-            continue;
-        }
-
-        let forward_velocity = Vec2::from_angle(movement.target_angle) * movement.speed;
-        gizmos.arrow_2d(center, center + forward_velocity, Color::LIME_GREEN);
-        gizmos.line_2d(target_center, center, Color::DARK_GREEN);
-
-        let weight = (alignment.radius - distance) / alignment.radius;
-        let weighted_velocity = forward_velocity.normalize() * weight;
-
-        velocity += weighted_velocity;
-        nearby_boid_count += 1.;
-    }
-
-    if nearby_boid_count > 0. {
-        velocity /= nearby_boid_count;
-        velocity *= alignment.factor;
-
-        alignment.velocity = velocity;
-
         gizmos.arrow_2d(
-            target_center,
-            target_center + velocity.normalize() * 50.,
-            Color::BLUE,
+            center,
+            center + Vec2::from_angle(movement.target_angle) * movement.speed,
+            Color::LIME_GREEN,
         );
-    } else {
-        alignment.velocity = Vec2::ZERO;
+        gizmos.line_2d(target_center, center, Color::DARK_GREEN);
     }
+
+    gizmos.arrow_2d(
+        target_center,
+        target_center + alignment.velocity,
+        Color::BLUE,
+    );
 }
 
 fn cohesion_system(
     mut gizmos: Gizmos,
-    mut target: Query<(&GlobalTransform, &mut CohesionRule)>,
+    target: Query<(&GlobalTransform, &CohesionRule), Without<NearbyBoid>>,
     query: Query<(&Transform, &BoidMovement), With<NearbyBoid>>,
 ) {
-    let (target, mut cohesion) = target.single_mut();
+    let (target, cohesion) = target.single();
     let target_center = target.translation().xy();
-
-    let mut nearby_boid_count = 0_f32;
-    let mut center_of_mass = target_center;
-    let mut boid_positions: Vec<Vec2> = vec![];
 
     for (transform, movement) in &query {
         let center = transform.translation.xy();
-        let distance = target_center.distance(center);
-        if distance > cohesion.radius {
-            continue;
-        }
-
-        let forward_velocity = Vec2::from_angle(movement.target_angle) * movement.speed;
-        gizmos.arrow_2d(center, center + forward_velocity, Color::LIME_GREEN);
-
-        center_of_mass += center;
-        nearby_boid_count += 1.;
-
-        boid_positions.push(center);
+        gizmos.arrow_2d(
+            center,
+            center + Vec2::from_angle(movement.target_angle) * movement.speed,
+            Color::LIME_GREEN,
+        );
     }
 
-    if nearby_boid_count > 0. {
-        center_of_mass -= target_center;
-        center_of_mass /= nearby_boid_count;
-
-        gizmos.circle_2d(center_of_mass, 1., Color::CRIMSON);
-        for boid_pos in boid_positions {
-            gizmos.line_2d(center_of_mass, boid_pos, Color::DARK_GREEN);
-        }
-
-        let com_vector = center_of_mass - target_center;
-        let com_velocity = com_vector.normalize() * cohesion.factor;
-
-        gizmos.arrow_2d(target_center, center_of_mass, Color::BLUE);
-
-        cohesion.velocity = com_velocity;
-    } else {
-        cohesion.velocity = Vec2::ZERO;
-    }
+    gizmos.arrow_2d(target_center, cohesion.velocity, Color::BLUE);
 }
 
 fn combined_rules_system(
