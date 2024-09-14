@@ -351,12 +351,15 @@ fn cohesion_system(
 
 fn combined_rules_system(
     mut gizmos: Gizmos,
-    target: Query<(
-        &GlobalTransform,
-        &mut SeparationRule,
-        &mut AlignmentRule,
-        &mut CohesionRule,
-    )>,
+    target: Query<
+        (
+            &GlobalTransform,
+            &SeparationRule,
+            &AlignmentRule,
+            &CohesionRule,
+        ),
+        Without<NearbyBoid>,
+    >,
 ) {
     let (target, separation, alignment, cohesion) = target.single();
     let target_center = target.translation().xy();
