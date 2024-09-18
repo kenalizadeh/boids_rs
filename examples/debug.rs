@@ -84,6 +84,7 @@ fn main() {
                 velocity_debug_text_system,
                 clear_objects_system,
                 object_spawn_system,
+                rule_factor_system,
                 separation_system.run_if(separation_enabled),
                 alignment_system.run_if(alignment_enabled),
                 cohesion_system.run_if(cohesion_enabled),
@@ -192,6 +193,38 @@ fn clear_objects_system(
     }
 }
 
+fn rule_factor_system(
+    mut target: Query<
+        (&mut SeparationRule, &mut AlignmentRule, &mut CohesionRule),
+        Without<NearbyBoid>,
+    >,
+    key_input: Res<ButtonInput<KeyCode>>,
+    state: Res<State<RuleState>>,
+) {
+    let increment: f32 = if key_input.just_pressed(KeyCode::KeyJ) {
+        -0.05
+    } else if key_input.just_pressed(KeyCode::KeyK) {
+        0.05
+    } else {
+        0.0
+    };
+
+    let (mut separation, mut alignment, mut cohesion) = target.single_mut();
+
+    match **state {
+        RuleState::Separation => {
+            separation.factor += increment;
+        }
+        RuleState::Alignment => {
+            alignment.factor += increment;
+        }
+        RuleState::Cohesion => {
+            cohesion.factor += increment;
+        }
+        _ => {}
+    }
+}
+
 fn object_spawn_system(
     key_input: Res<ButtonInput<KeyCode>>,
     cursor: Res<Cursor>,
@@ -220,6 +253,7 @@ fn object_spawn_system(
 
 fn state_text_system(
     mut query: Query<&mut Text, With<ControlsText>>,
+    target: Query<(&SeparationRule, &AlignmentRule, &CohesionRule), Without<NearbyBoid>>,
     state: Res<State<RuleState>>,
 ) {
     if state.is_changed() {
@@ -227,6 +261,7 @@ fn state_text_system(
     }
 
     let mut text = query.single_mut();
+    let (separation, alignment, cohesion) = target.single();
     let text = &mut text.sections[0].value;
     text.clear();
 
@@ -240,17 +275,21 @@ fn state_text_system(
         RuleState::Combined,
     ] {
         let s = if **state == st { ">" } else { " " };
-        text.push_str(&format!("{s} {st:?}\n"));
+        text.push_str(&format!("{s} {st:?}"));
+        let factor: f32 = match st {
+            RuleState::Separation => separation.factor,
+            RuleState::Alignment => alignment.factor,
+            RuleState::Cohesion => cohesion.factor,
+            _ => 0.0,
+        };
+        text.push_str(&format!("F: {factor}\n"));
     }
     text.push_str("\npress Space to cycle");
 }
 
 fn velocity_debug_text_system(
     mut query: Query<&mut Text, With<VelocityDebugText>>,
-    target: Query<
-        (&mut SeparationRule, &mut AlignmentRule, &mut CohesionRule),
-        Without<NearbyBoid>,
-    >,
+    target: Query<(&SeparationRule, &AlignmentRule, &CohesionRule), Without<NearbyBoid>>,
 ) {
     let (separation, alignment, cohesion) = target.single();
     let mut text = query.single_mut();
