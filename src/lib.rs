@@ -436,7 +436,7 @@ fn setup(
             SeparationRule::new(idx, 100., 1., Vec2::ZERO),
             AlignmentRule::new(idx, 100., 1., Vec2::ZERO),
             CohesionRule::new(idx, 100., 1., Vec2::ZERO),
-            BoidMovement::new(90., target_degrees, std::f32::consts::PI),
+            BoidMovement::new(300., target_degrees, std::f32::consts::PI),
         ));
     }
 }
