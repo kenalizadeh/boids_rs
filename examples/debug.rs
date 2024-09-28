@@ -142,9 +142,9 @@ fn setup(
             material: materials.add(ColorMaterial::from(Color::WHITE)),
             ..default()
         },
-        SeparationRule::new(TARGET_BOID_ID, RULES_RADIUS, 1., Vec2::ZERO),
-        AlignmentRule::new(TARGET_BOID_ID, RULES_RADIUS, 1., Vec2::ZERO),
-        CohesionRule::new(TARGET_BOID_ID, RULES_RADIUS, 1., Vec2::ZERO),
+        SeparationRule::new(TARGET_BOID_ID, RULES_RADIUS * 0.5, 1., Vec2::ZERO),
+        AlignmentRule::new(TARGET_BOID_ID, RULES_RADIUS * 1.0, 1., Vec2::ZERO),
+        CohesionRule::new(TARGET_BOID_ID, RULES_RADIUS * 0.75, 1., Vec2::ZERO),
         BoidMovement::new(90., 0., std::f32::consts::PI),
     ));
 }
@@ -173,12 +173,22 @@ fn cursor_gizmo_system(mut gizmos: Gizmos, cursor: Res<Cursor>) {
 
 fn radius_gizmo_system(
     mut gizmos: Gizmos,
-    query: Query<(&GlobalTransform, &SeparationRule), Without<NearbyBoid>>,
+    query: Query<
+        (
+            &GlobalTransform,
+            &SeparationRule,
+            &AlignmentRule,
+            &CohesionRule,
+        ),
+        Without<NearbyBoid>,
+    >,
 ) {
-    let (transform, separation) = query.single();
+    let (transform, separation, alignment, cohesion) = query.single();
     let target_center = transform.translation().xy();
 
-    gizmos.circle_2d(target_center, separation.radius, Color::CYAN);
+    gizmos.circle_2d(target_center, separation.radius, Color::RED);
+    gizmos.circle_2d(target_center, alignment.radius, Color::GREEN);
+    gizmos.circle_2d(target_center, cohesion.radius, Color::CYAN);
 }
 
 fn clear_objects_system(
@@ -336,11 +346,7 @@ fn separation_system(
         gizmos.line_2d(target_center, center, Color::DARK_GREEN);
     }
 
-    gizmos.arrow_2d(
-        target_center,
-        target_center + separation.velocity,
-        Color::BLUE,
-    );
+    gizmos.arrow_2d(target_center, separation.velocity, Color::BLUE);
 }
 
 fn alignment_system(
@@ -361,11 +367,7 @@ fn alignment_system(
         gizmos.line_2d(target_center, center, Color::DARK_GREEN);
     }
 
-    gizmos.arrow_2d(
-        target_center,
-        target_center + alignment.velocity,
-        Color::BLUE,
-    );
+    gizmos.arrow_2d(target_center, alignment.velocity, Color::BLUE);
 }
 
 fn cohesion_system(

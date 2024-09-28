@@ -227,13 +227,12 @@ fn separation_system(mut query: Query<(&GlobalTransform, &mut SeparationRule, &B
                 continue;
             }
 
-            // adding vectors gives us the attraction velocity, subtracting does the opposite.
-            let separation_velocity = current_center - center;
+            let direction = current_center - center;
             let weight = (current_separation.radius - distance) / current_separation.radius;
-            let weighted_velocity = separation_velocity.normalize() * weight;
-            let final_velocity = weighted_velocity * movement.speed;
+            let normalized_direction = direction.normalize();
+            let weighted_velocity = normalized_direction * weight * movement.speed;
 
-            velocity += final_velocity;
+            velocity += weighted_velocity;
             nearby_boid_count += 1;
         }
 
@@ -259,10 +258,12 @@ fn alignment_system(mut query: Query<(&Transform, &mut AlignmentRule, &BoidMovem
         let mut velocity = Vec2::ZERO;
 
         for (transform, alignment, _) in &query {
+            // skip over current boid
             if alignment.id == current_alignment.id {
                 continue;
             }
 
+            // filter out out-of-reach boids
             let center = transform.translation.xy();
             let distance = current_center.distance(center);
             if distance > current_alignment.radius {
@@ -322,8 +323,7 @@ fn cohesion_system(mut query: Query<(&GlobalTransform, &mut CohesionRule, &BoidM
             center_of_mass /= nearby_boid_count as f32;
 
             let com_vector = center_of_mass - current_center;
-            let com_velocity =
-                com_vector.normalize() * current_cohesion.factor * current_movement.speed;
+            let com_velocity = com_vector.normalize() * current_cohesion.factor;
 
             velocities[current_cohesion.id] = Some(com_velocity);
         }
@@ -429,14 +429,14 @@ fn setup(
             MaterialMesh2dBundle {
                 mesh: meshes.add(RegularPolygon::new(20., 3)).into(),
                 material: materials.add(ColorMaterial::from(rand_color)),
-                transform: Transform::from_xyz(grid.x, grid.y, 0.0)
+                transform: Transform::from_xyz(grid.x, grid.y, idx as f32)
                     .with_rotation(Quat::from_rotation_z(direction_degrees)),
                 ..default()
             },
-            SeparationRule::new(idx, 100., 1., Vec2::ZERO),
+            SeparationRule::new(idx, 50., 1., Vec2::ZERO),
             AlignmentRule::new(idx, 100., 1., Vec2::ZERO),
-            CohesionRule::new(idx, 100., 1., Vec2::ZERO),
-            BoidMovement::new(300., target_degrees, std::f32::consts::PI),
+            CohesionRule::new(idx, 75., 1., Vec2::ZERO),
+            BoidMovement::new(150., target_degrees, std::f32::consts::PI),
         ));
     }
 }
