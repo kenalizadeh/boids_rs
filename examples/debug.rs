@@ -145,7 +145,7 @@ fn setup(
         SeparationRule::new(TARGET_BOID_ID, RULES_RADIUS * 0.5, 1., Vec2::ZERO),
         AlignmentRule::new(TARGET_BOID_ID, RULES_RADIUS * 1.0, 1., Vec2::ZERO),
         CohesionRule::new(TARGET_BOID_ID, RULES_RADIUS * 0.75, 1., Vec2::ZERO),
-        BoidMovement::new(90., 0., std::f32::consts::PI),
+        BoidMovement::new(TARGET_BOID_ID, 90., 0., std::f32::consts::PI),
     ));
 }
 
@@ -255,7 +255,7 @@ fn object_spawn_system(
             SeparationRule::new(1, RULES_RADIUS, 1., Vec2::ZERO),
             AlignmentRule::new(1, RULES_RADIUS, 1., Vec2::ZERO),
             CohesionRule::new(1, RULES_RADIUS, 1., Vec2::ZERO),
-            BoidMovement::new(90., direction_degrees, std::f32::consts::PI),
+            BoidMovement::new(1, 90., direction_degrees, std::f32::consts::PI),
             NearbyBoid,
         ));
     }

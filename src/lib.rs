@@ -27,14 +27,16 @@ impl Plugin for MovementPlugin {
 
 #[derive(Component, Default)]
 pub struct BoidMovement {
+    pub id: usize,
     pub speed: f32,
     pub target_angle: f32,
     pub rotation_speed: f32,
 }
 
 impl BoidMovement {
-    pub fn new(speed: f32, target_angle: f32, rotation_speed: f32) -> Self {
+    pub fn new(id: usize, speed: f32, target_angle: f32, rotation_speed: f32) -> Self {
         Self {
+            id,
             speed,
             target_angle,
             rotation_speed,
@@ -209,19 +211,37 @@ impl CohesionRule {
     }
 }
 
-fn separation_system(mut query: Query<(&GlobalTransform, &mut SeparationRule, &BoidMovement)>) {
+fn separation_system(
+    mut gizmos: Gizmos,
+    mut query: Query<(&Transform, &mut SeparationRule, &BoidMovement)>,
+) {
     let mut velocities: [Option<Vec2>; BOID_COUNT] = [Option::None; BOID_COUNT];
-    for (current_transform, current_separation, _) in &query {
-        let current_center = current_transform.translation().xy();
+    for (current_transform, current_separation, current_movement) in &query {
+        let current_center = current_transform.translation.xy();
         let mut nearby_boid_count = 0_u8;
         let mut velocity = Vec2::ZERO;
+
+        if current_movement.id == DEBUG_BOID_ID {
+            gizmos.circle_2d(current_center, current_separation.radius, Color::SEA_GREEN);
+            let current_vel = (current_transform.rotation * Vec3::Y).xy().normalize();
+            gizmos.arrow_2d(
+                current_center,
+                current_center + current_vel * current_separation.radius,
+                Color::GOLD,
+            );
+            gizmos.arrow_2d(
+                current_center,
+                current_center + current_separation.velocity,
+                Color::RED,
+            );
+        }
 
         for (transform, separation, movement) in &query {
             if separation.id == current_separation.id {
                 continue;
             }
 
-            let center = transform.translation().xy();
+            let center = transform.translation.xy();
             let distance = current_center.distance(center);
             if distance > current_separation.radius {
                 continue;
@@ -250,12 +270,24 @@ fn separation_system(mut query: Query<(&GlobalTransform, &mut SeparationRule, &B
     }
 }
 
-fn alignment_system(mut query: Query<(&Transform, &mut AlignmentRule, &BoidMovement)>) {
+fn alignment_system(
+    mut gizmos: Gizmos,
+    mut query: Query<(&Transform, &mut AlignmentRule, &BoidMovement)>,
+) {
     let mut velocities: [Option<Vec2>; BOID_COUNT] = [Option::None; BOID_COUNT];
     for (current_transform, current_alignment, current_movement) in &query {
         let current_center = current_transform.translation.xy();
         let mut nearby_boid_count = 0_u8;
         let mut velocity = Vec2::ZERO;
+
+        if current_movement.id == DEBUG_BOID_ID {
+            gizmos.circle_2d(current_center, current_alignment.radius, Color::CYAN);
+            gizmos.arrow_2d(
+                current_center,
+                current_center + current_alignment.velocity,
+                Color::ORANGE,
+            );
+        }
 
         for (transform, alignment, _) in &query {
             // skip over current boid
@@ -277,6 +309,10 @@ fn alignment_system(mut query: Query<(&Transform, &mut AlignmentRule, &BoidMovem
 
             velocity += final_velocity;
             nearby_boid_count += 1;
+
+            if current_movement.id == DEBUG_BOID_ID {
+                gizmos.line_2d(current_center, center, Color::BLUE);
+            }
         }
 
         if nearby_boid_count > 0 {
@@ -293,20 +329,32 @@ fn alignment_system(mut query: Query<(&Transform, &mut AlignmentRule, &BoidMovem
     }
 }
 
-fn cohesion_system(mut query: Query<(&GlobalTransform, &mut CohesionRule, &BoidMovement)>) {
+fn cohesion_system(
+    mut gizmos: Gizmos,
+    mut query: Query<(&Transform, &mut CohesionRule, &BoidMovement)>,
+) {
     let mut velocities: [Option<Vec2>; BOID_COUNT] = [Option::None; BOID_COUNT];
     for (current_transform, current_cohesion, current_movement) in &query {
-        let current_center = current_transform.translation().xy();
+        let current_center = current_transform.translation.xy();
         let mut nearby_boid_count = 0_u8;
         let mut center_of_mass = current_center;
         let mut boid_positions: Vec<Vec2> = vec![];
+
+        if current_movement.id == DEBUG_BOID_ID {
+            gizmos.circle_2d(current_center, current_cohesion.radius, Color::VIOLET);
+            gizmos.arrow_2d(
+                current_center,
+                current_center + current_cohesion.velocity,
+                Color::PINK,
+            );
+        }
 
         for (transform, cohesion, _) in &query {
             if cohesion.id == current_cohesion.id {
                 continue;
             }
 
-            let center = transform.translation().xy();
+            let center = transform.translation.xy();
             let distance = current_center.distance(center);
             if distance > current_cohesion.radius {
                 continue;
@@ -339,6 +387,7 @@ fn cohesion_system(mut query: Query<(&GlobalTransform, &mut CohesionRule, &BoidM
 // global properties
 pub const INITIAL_WINDOW_SIZE: Vec2 = Vec2::new(2560_f32, 1800_f32);
 pub const BOID_COUNT: usize = 128;
+pub const DEBUG_BOID_ID: usize = BOID_COUNT + 1;
 
 // Walls
 const WALL_THICKNESS: f32 = 10.0;
@@ -433,10 +482,10 @@ fn setup(
                     .with_rotation(Quat::from_rotation_z(direction_degrees)),
                 ..default()
             },
-            SeparationRule::new(idx, 50., 1., Vec2::ZERO),
+            SeparationRule::new(idx, 175., 1., Vec2::ZERO),
             AlignmentRule::new(idx, 100., 1., Vec2::ZERO),
-            CohesionRule::new(idx, 75., 1., Vec2::ZERO),
-            BoidMovement::new(150., target_degrees, std::f32::consts::PI),
+            CohesionRule::new(idx, 200., 1., Vec2::ZERO),
+            BoidMovement::new(idx, 150., target_degrees, std::f32::consts::PI),
         ));
     }
 }
