@@ -380,8 +380,8 @@ fn cohesion_system(
 // STARTUP
 // global properties
 pub const INITIAL_WINDOW_SIZE: Vec2 = Vec2::new(2560_f32, 1800_f32);
-pub const BOID_COUNT: usize = 64;
-pub const DEBUG_BOID_ID: usize = 23;
+pub const BOID_COUNT: usize = 128;
+pub const DEBUG_BOID_ID: usize = BOID_COUNT + 1;
 
 // Walls
 const WALL_THICKNESS: f32 = 10.0;
