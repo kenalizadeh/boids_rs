@@ -223,12 +223,6 @@ fn separation_system(
 
         if current_movement.id == DEBUG_BOID_ID {
             gizmos.circle_2d(current_center, current_separation.radius, Color::SEA_GREEN);
-            let current_vel = (current_transform.rotation * Vec3::Y).xy().normalize();
-            gizmos.arrow_2d(
-                current_center,
-                current_center + current_vel * current_separation.radius,
-                Color::GOLD,
-            );
             gizmos.arrow_2d(
                 current_center,
                 current_center + current_separation.velocity,
@@ -236,7 +230,7 @@ fn separation_system(
             );
         }
 
-        for (transform, separation, movement) in &query {
+        for (transform, separation, _) in &query {
             if separation.id == current_separation.id {
                 continue;
             }
@@ -247,10 +241,9 @@ fn separation_system(
                 continue;
             }
 
-            let direction = current_center - center;
+            let init_velocity = current_center - center;
             let weight = (current_separation.radius - distance) / current_separation.radius;
-            let normalized_direction = direction.normalize();
-            let weighted_velocity = normalized_direction * weight * movement.speed;
+            let weighted_velocity = init_velocity.normalize() * weight * current_movement.speed;
 
             velocity += weighted_velocity;
             nearby_boid_count += 1;
@@ -285,7 +278,7 @@ fn alignment_system(
             gizmos.arrow_2d(
                 current_center,
                 current_center + current_alignment.velocity,
-                Color::ORANGE,
+                Color::ALICE_BLUE,
             );
         }
 
@@ -302,12 +295,11 @@ fn alignment_system(
                 continue;
             }
 
-            let boid_velocity = (transform.rotation * Vec3::Y).xy();
-            let weight = (alignment.radius - distance) / alignment.radius;
-            let weighted_velocity = boid_velocity.normalize() * weight;
-            let final_velocity = weighted_velocity * current_movement.speed;
+            let init_velocity = (transform.rotation * Vec3::Y).xy();
+            let weight = (current_alignment.radius - distance) / current_alignment.radius;
+            let weighted_velocity = init_velocity.normalize() * weight * current_movement.speed;
 
-            velocity += final_velocity;
+            velocity += weighted_velocity;
             nearby_boid_count += 1;
 
             if current_movement.id == DEBUG_BOID_ID {
@@ -341,11 +333,11 @@ fn cohesion_system(
         let mut boid_positions: Vec<Vec2> = vec![];
 
         if current_movement.id == DEBUG_BOID_ID {
-            gizmos.circle_2d(current_center, current_cohesion.radius, Color::VIOLET);
+            gizmos.circle_2d(current_center, current_cohesion.radius, Color::PINK);
             gizmos.arrow_2d(
                 current_center,
                 current_center + current_cohesion.velocity,
-                Color::PINK,
+                Color::TURQUOISE,
             );
         }
 
@@ -371,9 +363,11 @@ fn cohesion_system(
             center_of_mass /= nearby_boid_count as f32;
 
             let com_vector = center_of_mass - current_center;
-            let com_velocity = com_vector.normalize() * current_cohesion.factor;
+            let weight = (current_cohesion.radius - com_vector.length()) / current_cohesion.radius;
+            let weighted_velocity =
+                com_vector.normalize() * weight * current_movement.speed * current_cohesion.factor;
 
-            velocities[current_cohesion.id] = Some(com_velocity);
+            velocities[current_cohesion.id] = Some(weighted_velocity);
         }
     }
 
@@ -386,8 +380,8 @@ fn cohesion_system(
 // STARTUP
 // global properties
 pub const INITIAL_WINDOW_SIZE: Vec2 = Vec2::new(2560_f32, 1800_f32);
-pub const BOID_COUNT: usize = 128;
-pub const DEBUG_BOID_ID: usize = BOID_COUNT + 1;
+pub const BOID_COUNT: usize = 64;
+pub const DEBUG_BOID_ID: usize = 23;
 
 // Walls
 const WALL_THICKNESS: f32 = 10.0;
