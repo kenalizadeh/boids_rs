@@ -1,4 +1,5 @@
 use bevy::{
+    color::LinearRgba,
     ecs::system::{Query, Res},
     prelude::*,
     sprite::{MaterialMesh2dBundle, Mesh2dHandle},
@@ -222,11 +223,11 @@ fn separation_system(
         let mut velocity = Vec2::ZERO;
 
         if current_movement.id == DEBUG_BOID_ID {
-            gizmos.circle_2d(current_center, current_separation.radius, Color::SEA_GREEN);
+            gizmos.circle_2d(current_center, current_separation.radius, LinearRgba::RED);
             gizmos.arrow_2d(
                 current_center,
                 current_center + current_separation.velocity,
-                Color::RED,
+                LinearRgba::RED,
             );
         }
 
@@ -274,11 +275,11 @@ fn alignment_system(
         let mut velocity = Vec2::ZERO;
 
         if current_movement.id == DEBUG_BOID_ID {
-            gizmos.circle_2d(current_center, current_alignment.radius, Color::CYAN);
+            gizmos.circle_2d(current_center, current_alignment.radius, LinearRgba::GREEN);
             gizmos.arrow_2d(
                 current_center,
                 current_center + current_alignment.velocity,
-                Color::ALICE_BLUE,
+                LinearRgba::GREEN,
             );
         }
 
@@ -303,7 +304,7 @@ fn alignment_system(
             nearby_boid_count += 1;
 
             if current_movement.id == DEBUG_BOID_ID {
-                gizmos.line_2d(current_center, center, Color::BLUE);
+                gizmos.line_2d(current_center, center, LinearRgba::BLUE);
             }
         }
 
@@ -333,11 +334,11 @@ fn cohesion_system(
         let mut boid_positions: Vec<Vec2> = vec![];
 
         if current_movement.id == DEBUG_BOID_ID {
-            gizmos.circle_2d(current_center, current_cohesion.radius, Color::PINK);
+            gizmos.circle_2d(current_center, current_cohesion.radius, LinearRgba::WHITE);
             gizmos.arrow_2d(
                 current_center,
                 current_center + current_cohesion.velocity,
-                Color::TURQUOISE,
+                LinearRgba::WHITE,
             );
         }
 
@@ -386,7 +387,7 @@ pub const DEBUG_BOID_ID: usize = BOID_COUNT + 1;
 // Walls
 const WALL_THICKNESS: f32 = 10.0;
 const WALL_Z: f32 = 10.0;
-const WALL_COLOR: Color = Color::DARK_GREEN;
+const WALL_COLOR: LinearRgba = LinearRgba::GREEN;
 
 pub struct StartupPlugin;
 
@@ -452,7 +453,7 @@ fn setup(
         commands.spawn((
             MaterialMesh2dBundle {
                 mesh: meshes.add(size).into(),
-                material: materials.add(ColorMaterial::from(WALL_COLOR)),
+                material: materials.add(ColorMaterial::from_color(WALL_COLOR)),
                 transform: Transform::from_translation(Vec3::new(pos.x, pos.y, WALL_Z)),
                 ..default()
             },
@@ -489,7 +490,7 @@ fn make_random_pastel_color() -> Color {
     const LIGHT_BLUE_G: f32 = 216. / 255.;
     const LIGHT_BLUE_B: f32 = 230. / 255.;
 
-    Color::rgb(
+    Color::srgb(
         (fastrand::f32() + LIGHT_BLUE_R) / 2.,
         (fastrand::f32() + LIGHT_BLUE_G) / 2.,
         (fastrand::f32() + LIGHT_BLUE_B) / 2.,

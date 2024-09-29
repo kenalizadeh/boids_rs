@@ -1,7 +1,4 @@
-use bevy::{
-    prelude::*,
-    window::{close_on_esc, WindowResolution},
-};
+use bevy::{prelude::*, window::WindowResolution};
 
 use boids_rs::{MovementPlugin, RulesPlugin, StartupPlugin, INITIAL_WINDOW_SIZE};
 
@@ -20,6 +17,6 @@ fn main() {
         .add_plugins(StartupPlugin)
         .add_plugins(MovementPlugin)
         .add_plugins(RulesPlugin)
-        .add_systems(Update, close_on_esc)
+        // .add_systems(Update, close_on_esc)
         .run();
 }
