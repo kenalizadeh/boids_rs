@@ -43,7 +43,7 @@ Currently stuck. No idea how to manage raycasting result velocity and flock mean
 Created a separate project to experiment with movement system. Inspired by [Game Endeavor Video](https://www.youtube.com/watch?v=6BrZryMz-ac). Didn't go far, but had fun.
 
 ### 24 March
-Until this point I tried to figure the rule implementations myself, hence the whole Raycasting, local flock's mean angle calculation. Which was lots of fun, since I had no deadlines. It meant 
+Until this point I tried to figure the rule implementations myself, hence the whole Raycasting, local flock's mean angle calculation. Which was lots of fun, since I had no deadlines. 
 Then I watched this [Suboptimal Engineer Video](https://www.youtube.com/watch?v=HzR-9tfOJQo) on boids simulation. Tried not to cheat and copy everything so didn't watch a lot. The intro explained how we just have to calculate separate velocities for the rules (separation, alignment, cohesion) and "combine" them to end up with a final velocity for each boid.
 So now going with that. To be continued...
 
@@ -63,9 +63,8 @@ Boids are finally boiding. There are a lot of room for improvement though, obvio
 </br>
 
 # Journey Summary
-The original Boids by Craig Reynolds is a simple but fascinating system.
+The original [Boids by Craig Reynolds](https://www.cs.toronto.edu/~dt/siggraph97-course/cwr87) is a simple but fascinating system.
 I learned interesting maths, specifically linear algebra concepts for vector operations, game development philosophy and methods.
-Bevy Engine might be in it's early stages.
 This was my first ever proper experience with a game engine and I really enjoyed Bevy the entire duration of using it.
 It's Entity Component System is really intuitive to work with.
 And being able to `gd` into engine code was really helpful. And to my knowledge it's something most game engines cannot offer.
