@@ -2,7 +2,6 @@ use bevy::{
     color::LinearRgba,
     ecs::system::{Query, Res},
     prelude::*,
-    sprite::{MaterialMesh2dBundle, Mesh2dHandle},
     time::Time,
     transform::components::Transform,
     window::WindowResized,
@@ -66,7 +65,7 @@ fn boids_rotation_system(time: Res<Time>, mut query: Query<(&mut Transform, &Boi
         let max_angle = target_vel_dot.clamp(-1.0, 1.0).acos();
 
         let rotation_angle =
-            rotation_sign * (movement.rotation_speed * time.delta_seconds()).min(max_angle);
+            rotation_sign * (movement.rotation_speed * time.delta_secs()).min(max_angle);
 
         transform.rotate_z(rotation_angle);
     }
@@ -96,7 +95,7 @@ fn boids_forward_movement_system(
 ) {
     for (mut transform, movement) in &mut query {
         let movement_direction = transform.rotation * Vec3::Y;
-        let movement_distance = movement.speed * time.delta_seconds();
+        let movement_distance = movement.speed * time.delta_secs();
         let translation_delta = movement_direction * movement_distance;
         transform.translation += translation_delta;
     }
@@ -438,7 +437,7 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    commands.spawn(Camera2dBundle::default());
+    commands.spawn(Camera2d);
 
     // WALLS
     for (wall, frame) in [
@@ -451,12 +450,9 @@ fn setup(
         let size = frame.size();
 
         commands.spawn((
-            MaterialMesh2dBundle {
-                mesh: meshes.add(size).into(),
-                material: materials.add(ColorMaterial::from_color(WALL_COLOR)),
-                transform: Transform::from_translation(Vec3::new(pos.x, pos.y, WALL_Z)),
-                ..default()
-            },
+            Mesh2d(meshes.add(size)),
+            MeshMaterial2d(materials.add(ColorMaterial::from_color(WALL_COLOR))),
+            Transform::from_translation(Vec3::new(pos.x, pos.y, WALL_Z)),
             wall,
         ));
     }
@@ -470,13 +466,10 @@ fn setup(
         let rand_color = make_random_pastel_color();
 
         commands.spawn((
-            MaterialMesh2dBundle {
-                mesh: meshes.add(RegularPolygon::new(20., 3)).into(),
-                material: materials.add(ColorMaterial::from(rand_color)),
-                transform: Transform::from_xyz(grid.x, grid.y, idx as f32)
-                    .with_rotation(Quat::from_rotation_z(direction_degrees)),
-                ..default()
-            },
+            Mesh2d(meshes.add(RegularPolygon::new(20., 3))),
+            MeshMaterial2d(materials.add(ColorMaterial::from(rand_color))),
+            Transform::from_xyz(grid.x, grid.y, idx as f32)
+                .with_rotation(Quat::from_rotation_z(direction_degrees)),
             SeparationRule::new(idx, 175., 1., Vec2::ZERO),
             AlignmentRule::new(idx, 100., 1., Vec2::ZERO),
             CohesionRule::new(idx, 200., 1., Vec2::ZERO),
@@ -525,7 +518,7 @@ fn tile_window(tile_size: u32) -> Vec<RectFrame> {
 
 fn window_walls_resize_system(
     mut meshes: ResMut<Assets<Mesh>>,
-    mut wall_query: Query<(&mut Transform, &mut Mesh2dHandle, &Wall)>,
+    mut wall_query: Query<(&mut Transform, &mut Mesh2d, &Wall)>,
     mut resize_reader: EventReader<WindowResized>,
 ) {
     if let Some(window) = resize_reader.read().next() {
